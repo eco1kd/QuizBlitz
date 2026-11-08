@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Flame, Trophy, Clock, Sparkles } from 'lucide-react'
+import { Flame, Trophy, Clock, Sparkles, Volume2, VolumeX } from 'lucide-react'
+import { sounds } from '../../services/soundEffects'
 
 interface GameHeaderProps {
   currentIndex: number
@@ -21,8 +22,21 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   timeLimit,
   showTimer = true
 }) => {
+  const [isMuted, setIsMuted] = useState(sounds.isMuted)
   const isUrgent = timeRemaining <= 5 && timeRemaining > 0
   const progressRatio = Math.max(0, Math.min(1, timeRemaining / (timeLimit || 20)))
+
+  // Звук тиканья таймера
+  useEffect(() => {
+    if (showTimer && timeRemaining <= 5 && timeRemaining > 0) {
+      sounds.playTimerTick(true)
+    }
+  }, [timeRemaining, showTimer])
+
+  const toggleSound = () => {
+    const muted = sounds.toggleMute()
+    setIsMuted(muted)
+  }
 
   return (
     <header className="w-full max-w-3xl mx-auto px-4 pt-3 pb-2 select-none">
@@ -36,7 +50,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           </span>
         </div>
 
-        {/* Счёт и Стрик */}
+        {/* Счёт, Стрик и Звук */}
         <div className="flex items-center gap-2">
           {streak >= 2 && (
             <motion.div
@@ -55,6 +69,16 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
               {score.toLocaleString()} <span className="text-[10px] text-purple-300 uppercase">pts</span>
             </span>
           </div>
+
+          {/* Кнопка переключения звука */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+            className="w-8 h-8 rounded-full bg-[#202330] border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-gray-500" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
+          </button>
         </div>
       </div>
 

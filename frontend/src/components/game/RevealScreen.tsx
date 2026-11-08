@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Check, X, Flame, Lightbulb } from 'lucide-react'
 import type { PlayerResult, QuestionData, QuestionRevealData } from '../../types/game'
 import { AnswerCard } from './AnswerCard'
+import { sounds } from '../../services/soundEffects'
 
 interface RevealScreenProps {
   question: QuestionData
@@ -20,6 +21,14 @@ export const RevealScreen: React.FC<RevealScreenProps> = ({
   const isCorrect = myResult?.correct ?? false
   const points = myResult?.points ?? 0
   const streak = myResult?.streak ?? 0
+
+  useEffect(() => {
+    if (isCorrect) {
+      sounds.playCorrect()
+    } else {
+      sounds.playWrong()
+    }
+  }, [isCorrect])
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-3 flex flex-col justify-between flex-1 select-none">

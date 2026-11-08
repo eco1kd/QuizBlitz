@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { Trophy, Crown, Flame, Award, RotateCcw } from 'lucide-react'
 import type { GameFinishedData } from '../../types/game'
+import { sounds } from '../../services/soundEffects'
 
 interface PodiumScreenProps {
   finishedData: GameFinishedData
@@ -23,8 +24,10 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
 
   const myPlayer = leaderboard.find(p => p.id === currentPlayerId)
 
-  // Запуск праздничного конфетти салюта при входе на подиум
+  // Запуск праздничного конфетти салюта и фанфар при входе на подиум
   useEffect(() => {
+    sounds.playFanfare()
+
     const duration = 3 * 1000
     const end = Date.now() + duration
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Triangle, Diamond, Circle, Square, Check, X } from 'lucide-react'
+import { sounds } from '../../services/soundEffects'
 
 export interface AnswerCardProps {
   index: number // 0..3
@@ -74,16 +75,22 @@ export const AnswerCard: React.FC<AnswerCardProps> = ({
     containerExtra = 'ring-4 ring-white shadow-2xl scale-[0.98]'
   }
 
+  const handleClick = () => {
+    if (disabled || isRevealMode) return
+    sounds.playClick()
+    onClick?.()
+  }
+
   return (
     <motion.button
       type="button"
-      onClick={disabled ? undefined : onClick}
-      whileHover={!disabled && !isRevealMode ? { y: -3, scale: 1.01 } : {}}
-      whileTap={!disabled && !isRevealMode ? { scale: 0.95 } : {}}
-      transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+      onClick={handleClick}
+      whileHover={!disabled && !isRevealMode ? { y: -2, scale: 1.01 } : {}}
+      whileTap={!disabled && !isRevealMode ? { scale: 0.94 } : {}}
+      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
       style={{ opacity }}
       disabled={disabled}
-      className={`relative w-full min-h-[76px] sm:min-h-[88px] p-3.5 sm:p-4 rounded-[26px] sm:rounded-[28px] text-white flex items-center gap-3 sm:gap-4 border text-left cursor-pointer transition-all duration-200 select-none shadow-lg ${style.bg} ${style.border} ${style.shadow} ${containerExtra} ${
+      className={`relative w-full min-h-[76px] sm:min-h-[88px] p-3.5 sm:p-4 rounded-[26px] sm:rounded-[28px] text-white flex items-center gap-3 sm:gap-4 border text-left cursor-pointer transition-all duration-200 select-none shadow-lg active:brightness-110 ${style.bg} ${style.border} ${style.shadow} ${containerExtra} ${
         disabled && !isRevealMode ? 'cursor-not-allowed opacity-90' : ''
       }`}
     >
