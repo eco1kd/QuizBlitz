@@ -12,6 +12,7 @@ export interface Player {
   streak?: number
   isCurrentPlayer?: boolean
   answered?: boolean
+  isHost?: boolean
 }
 
 export interface PlayerResult {
@@ -70,10 +71,20 @@ export interface GameError {
   message: string
 }
 
+export interface RoomInfo {
+  code: string
+  roomId: string
+  topic: string
+  questionCount: number
+  difficulty: 'easy' | 'medium' | 'hard'
+  isHost: boolean
+}
+
 /**
  * Стадии игрового экрана
  */
 export type GamePhase =
+  | 'lobby' // экран лобби ожидания игроков
   | 'idle' // ожидание старта
   | 'question' // показан вопрос, идет таймер, выбор ответа
   | 'waiting' // ответ выбран игроком, ожидание других игроков / таймера

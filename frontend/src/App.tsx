@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Wifi, Zap } from 'lucide-react'
 import { useGameEngine } from './hooks/useGameEngine'
 import { GameHeader } from './components/game/GameHeader'
+import { LobbyScreen } from './components/lobby/LobbyScreen'
 import { QuestionScreen } from './components/game/QuestionScreen'
 import { WaitingScreen } from './components/game/WaitingScreen'
 import { RevealScreen } from './components/game/RevealScreen'
@@ -12,6 +13,8 @@ import { DevToolbar } from './components/dev/DevToolbar'
 export function App() {
   const {
     phase,
+    roomInfo,
+    roomPlayers,
     question,
     timeRemaining,
     selectedOption,
@@ -23,11 +26,13 @@ export function App() {
     myStreak,
     errorMessage,
     isAutoMode,
+    startLobbyGame,
     submitAnswer,
     restartGame,
     toggleAutoMode,
     setDevPhase,
     triggerDevError,
+    addBotPlayer,
     currentPlayer
   } = useGameEngine()
 
@@ -46,7 +51,7 @@ export function App() {
             </span>
             <span className="text-gray-600">/</span>
             <span className="bg-white/10 text-gray-200 px-2 py-0.5 rounded-full font-mono text-[11px]">
-              Код: 849-215
+              Код: {roomInfo.code.slice(0, 3)}-{roomInfo.code.slice(3)}
             </span>
           </div>
 
@@ -79,8 +84,8 @@ export function App() {
         )}
       </AnimatePresence>
 
-      {/* Верхний игровой хедер с таймером и счетом (скрыт на финальном экране) */}
-      {question && phase !== 'finished' && (
+      {/* Верхний игровой хедер с таймером и счетом (скрыт в лобби и на финальном экране) */}
+      {question && phase !== 'lobby' && phase !== 'finished' && (
         <GameHeader
           currentIndex={question.index}
           totalQuestions={question.total}
@@ -95,6 +100,24 @@ export function App() {
       {/* Основная интерактивная зона с плавным переходом между фазами игры */}
       <main className="flex-1 flex flex-col justify-center py-2 relative z-10">
         <AnimatePresence mode="wait">
+          {phase === 'lobby' && (
+            <motion.div
+              key="lobby-screen"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
+              className="flex-1 flex flex-col justify-center"
+            >
+              <LobbyScreen
+                roomInfo={roomInfo}
+                players={roomPlayers}
+                onStartGame={startLobbyGame}
+                onAddBot={addBotPlayer}
+              />
+            </motion.div>
+          )}
+
           {phase === 'question' && question && (
             <motion.div
               key="question-screen"

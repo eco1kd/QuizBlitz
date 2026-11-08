@@ -6,7 +6,8 @@ import type {
   Player,
   PlayerResult,
   QuestionData,
-  QuestionRevealData
+  QuestionRevealData,
+  RoomInfo
 } from '../types/game'
 import { MOCK_QUESTIONS, type QuestionWithAnswer } from './mockQuestions'
 
@@ -19,6 +20,15 @@ export class MockGameServer {
   private timerInterval: number | null = null
   private autoAdvanceTimer: number | null = null
 
+  public roomInfo: RoomInfo = {
+    code: '849215',
+    roomId: 'room-beta-42',
+    topic: 'Космос, Наука и ИИ',
+    questionCount: 5,
+    difficulty: 'medium',
+    isHost: true
+  }
+
   public currentPlayer: Player = {
     id: 'player-karapuz',
     nickname: 'karapuz1226',
@@ -27,7 +37,8 @@ export class MockGameServer {
     rank: 1,
     streak: 0,
     isCurrentPlayer: true,
-    answered: false
+    answered: false,
+    isHost: true
   }
 
   public players: Player[] = [
@@ -66,6 +77,26 @@ export class MockGameServer {
 
   public getCurrentQuestion(): QuestionWithAnswer {
     return this.questions[this.currentQuestionIdx]
+  }
+
+  public openLobby() {
+    this.clearTimers()
+    this.resetPlayers()
+    this.emit('room:created', { code: this.roomInfo.code, roomId: this.roomInfo.roomId })
+    this.emit('room:updated', { players: this.players })
+  }
+
+  public addMockPlayer(nickname: string, avatar: string) {
+    const newPlayer: Player = {
+      id: `player-${Date.now()}`,
+      nickname,
+      avatar,
+      score: 0,
+      streak: 0,
+      answered: false
+    }
+    this.players.push(newPlayer)
+    this.emit('room:updated', { players: [...this.players] })
   }
 
   public startGame() {
@@ -139,7 +170,7 @@ export class MockGameServer {
   }
 
   public submitAnswer(optionIndex: number) {
-    if (this.selectedOption !== null) return // уже ответил
+    if (this.selectedOption !== null) return
     this.selectedOption = optionIndex
     this.currentPlayer.answered = true
 
@@ -148,7 +179,6 @@ export class MockGameServer {
 
     this.emit('answer:accepted', { questionId: this.getCurrentQuestion().questionId })
 
-    // Проверяем, ответили ли все
     const allAnswered = this.players.every(p => p.answered)
     if (allAnswered && this.isAutoMode) {
       this.clearTimers()
@@ -160,7 +190,7 @@ export class MockGameServer {
 
   private simulateBotsAnswering() {
     this.players.filter(p => !p.isCurrentPlayer).forEach(bot => {
-      const delay = 2000 + Math.random() * 8000 // бот отвечает через 2-10 сек
+      const delay = 2000 + Math.random() * 8000
       window.setTimeout(() => {
         if (this.timeRemaining > 0 && !bot.answered) {
           bot.answered = true
@@ -182,14 +212,12 @@ export class MockGameServer {
       if (player.isCurrentPlayer) {
         isCorrect = this.selectedOption === q.correctIndex
       } else {
-        // У ботов ~72% шанс ответить правильно
         isCorrect = Math.random() < 0.72
       }
 
       if (isCorrect) {
         player.streak = (player.streak || 0) + 1
         const streakMultiplier = player.streak >= 5 ? 1.5 : player.streak >= 3 ? 1.2 : 1.0
-        // Формула: 1000 * (оставшееся_время / общее_время) * множитель
         const ratio = Math.max(0.15, this.timeRemaining / q.timeLimit)
         points = Math.round(1000 * ratio * streakMultiplier)
         player.score += points
@@ -233,7 +261,6 @@ export class MockGameServer {
 
   public showLeaderboard() {
     this.clearTimers()
-    // Сортировка по очкам
     const sorted = [...this.players].sort((a, b) => b.score - a.score)
     const leaderboardPlayers: LeaderboardPlayer[] = sorted.map((p, idx) => {
       const prev = p.rank || (idx + 1)
@@ -297,12 +324,13 @@ export class MockGameServer {
     this.emit('game:finished', finishedData)
   }
 
-  // Методы Dev-пульта для мгновенного перехода в любое состояние
-  public devSetPhase(phase: 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) {
+  public devSetPhase(phase: 'lobby' | 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) {
     this.clearTimers()
     this.isAutoMode = false
 
-    if (phase === 'question') {
+    if (phase === 'lobby') {
+      this.openLobby()
+    } else if (phase === 'question') {
       this.showCurrentQuestion()
     } else if (phase === 'waiting') {
       this.selectedOption = 1

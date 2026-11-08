@@ -6,7 +6,7 @@ interface DevToolbarProps {
   currentPhase: string
   isAutoMode: boolean
   onToggleAuto: (active: boolean) => void
-  onSetPhase: (phase: 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) => void
+  onSetPhase: (phase: 'lobby' | 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) => void
   onTriggerError: (msg: string) => void
   onRestart: () => void
 }
@@ -69,6 +69,13 @@ export const DevToolbar: React.FC<DevToolbarProps> = ({
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
+                  onClick={() => onSetPhase('lobby')}
+                  className="px-2 py-1.5 rounded-xl bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 font-semibold transition"
+                >
+                  0. Лобби
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSetPhase('question')}
                   className="px-2 py-1.5 rounded-xl bg-[#292d3e] hover:bg-[#34394f] text-gray-200 font-semibold transition"
                 >
@@ -105,7 +112,7 @@ export const DevToolbar: React.FC<DevToolbarProps> = ({
                 <button
                   type="button"
                   onClick={() => onSetPhase('finished')}
-                  className="px-2 py-1.5 rounded-xl bg-amber-900/50 hover:bg-amber-800 text-amber-200 font-semibold transition"
+                  className="px-2 py-1.5 rounded-xl bg-amber-900/50 hover:bg-amber-800 text-amber-200 font-semibold transition col-span-2"
                 >
                   5. Финал / Подиум
                 </button>

@@ -5,12 +5,16 @@ import type {
   LeaderboardData,
   QuestionData,
   QuestionRevealData,
-  PlayerResult
+  PlayerResult,
+  Player,
+  RoomInfo
 } from '../types/game'
 import { mockGameServer } from '../services/mockSocket'
 
 export function useGameEngine() {
-  const [phase, setPhase] = useState<GamePhase>('question')
+  const [phase, setPhase] = useState<GamePhase>('lobby')
+  const [roomInfo] = useState<RoomInfo>(mockGameServer.roomInfo)
+  const [roomPlayers, setRoomPlayers] = useState<Player[]>([...mockGameServer.players])
   const [question, setQuestion] = useState<QuestionData | null>(null)
   const [timeRemaining, setTimeRemaining] = useState<number>(20)
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
@@ -24,9 +28,16 @@ export function useGameEngine() {
   const [isAutoMode, setIsAutoMode] = useState<boolean>(true)
 
   useEffect(() => {
-    // Подписка на события заглушки (или реального WS)
     const unsubscribe = mockGameServer.subscribe((event, data) => {
       switch (event) {
+        case 'room:created':
+          setPhase('lobby')
+          break
+
+        case 'room:updated':
+          setRoomPlayers([...data.players])
+          break
+
         case 'question:show':
           setQuestion(data)
           setTimeRemaining(data.timeLimit)
@@ -77,16 +88,13 @@ export function useGameEngine() {
       }
     })
 
-    // Инициализация первой игры
-    mockGameServer.startGame()
-    setQuestion(mockGameServer.getCurrentQuestion())
-    setTimeRemaining(mockGameServer.timeRemaining)
-    setMyScore(mockGameServer.currentPlayer.score)
-    setMyStreak(mockGameServer.currentPlayer.streak || 0)
-
     return () => {
       unsubscribe()
     }
+  }, [])
+
+  const startLobbyGame = useCallback(() => {
+    mockGameServer.startGame()
   }, [])
 
   const submitAnswer = useCallback((optionIndex: number) => {
@@ -105,7 +113,7 @@ export function useGameEngine() {
     setIsAutoMode(active)
   }, [])
 
-  const setDevPhase = useCallback((targetPhase: 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) => {
+  const setDevPhase = useCallback((targetPhase: 'lobby' | 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) => {
     mockGameServer.devSetPhase(targetPhase, opts)
     if (opts?.correct !== undefined && targetPhase === 'reveal') {
       setSelectedOption(opts.correct ? mockGameServer.getCurrentQuestion().correctIndex : (mockGameServer.getCurrentQuestion().correctIndex + 1) % 4)
@@ -116,8 +124,14 @@ export function useGameEngine() {
     mockGameServer.devTriggerError(msg)
   }, [])
 
+  const addBotPlayer = useCallback((nickname: string, avatar: string) => {
+    mockGameServer.addMockPlayer(nickname, avatar)
+  }, [])
+
   return {
     phase,
+    roomInfo,
+    roomPlayers,
     question,
     timeRemaining,
     selectedOption,
@@ -129,11 +143,13 @@ export function useGameEngine() {
     myStreak,
     errorMessage,
     isAutoMode,
+    startLobbyGame,
     submitAnswer,
     restartGame,
     toggleAutoMode,
     setDevPhase,
     triggerDevError,
+    addBotPlayer,
     currentPlayer: mockGameServer.currentPlayer
   }
 }
