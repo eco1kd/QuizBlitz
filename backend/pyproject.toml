@@ -1,0 +1,22 @@
+[project]
+name = "quizblitz-backend"
+version = "0.1.0"
+description = "Backend for QuizBlitz multiplayer quiz application with AI-generated questions."
+authors = [
+    {name = "nekooraw"}
+]
+license = "MIT"
+requires-python = "^3.14"
+dependencies = [
+    "fastapi (>=0.162.2,<0.163.0)",
+    "uvicorn[standard] (>=0.54.0,<0.55.0)",
+    "sqlalchemy[asyncio] (>=2.1.8,<3.0.0)",
+    "asyncpg (>=0.32.0,<0.33.0)",
+    "alembic (>=1.20.1,<2.0.0)",
+    "python-dotenv (>=1.2.4,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
