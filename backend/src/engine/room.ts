@@ -39,8 +39,8 @@ export class Room {
   public phase: GamePhase = 'lobby'
 
   public hostId: string | null = null
-  private players: Map<string, Player> = new Map() // playerId -> Player
-  private socketToPlayerId: Map<string, string> = new Map() // socketId -> playerId
+  private players: Map<string, Player> = new Map()
+  private socketToPlayerId: Map<string, string> = new Map()
 
   public questions: QuestionWithAnswer[] = []
   public currentQuestionIndex = 0
@@ -84,8 +84,6 @@ export class Room {
     }
   }
 
-  // --- Player Management & Reconnect ---
-
   public addOrReconnectPlayer(data: {
     nickname: string
     avatar?: string
@@ -93,10 +91,8 @@ export class Room {
     playerId?: string
     isHost?: boolean
   }): { player: Player; isReconnect: boolean } {
-    // 1. Reconnect check by playerId
     if (data.playerId && this.players.has(data.playerId)) {
       const existing = this.players.get(data.playerId)!
-      // Remove old socket mapping if any
       if (existing.socketId) {
         this.socketToPlayerId.delete(existing.socketId)
       }
@@ -110,7 +106,6 @@ export class Room {
       return { player: existing, isReconnect: true }
     }
 
-    // 2. Reconnect check by nickname (if disconnected player with same nickname exists)
     for (const p of this.players.values()) {
       if (p.disconnected && p.nickname.toLowerCase() === data.nickname.trim().toLowerCase()) {
         if (p.socketId) {
@@ -126,7 +121,6 @@ export class Room {
       }
     }
 
-    // 3. New Player
     const playerId = data.playerId || `player-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
     const isFirstPlayer = this.players.size === 0
     const isHost = data.isHost ?? isFirstPlayer
@@ -192,8 +186,6 @@ export class Room {
     this.emit('room:updated', { players: playersList })
   }
 
-  // --- Game Lifecycle ---
-
   public startGame(questions: QuestionWithAnswer[]): void {
     if (this.phase !== 'lobby') {
       throw new Error(`Cannot start game from phase "${this.phase}"`)
@@ -207,7 +199,6 @@ export class Room {
     this.allAnswers = []
     this.responseTimesMs = []
 
-    // Reset scores & streaks
     for (const p of this.players.values()) {
       p.score = 0
       p.streak = 0
@@ -224,7 +215,6 @@ export class Room {
     this.phase = 'question'
     this.answersForCurrentQuestion.clear()
 
-    // Reset answered flag for all players
     for (const p of this.players.values()) {
       p.answered = false
     }
@@ -267,8 +257,6 @@ export class Room {
       this.timerInterval = null
     }
   }
-
-  // --- Answer Processing ---
 
   public submitAnswer(params: {
     playerId: string
@@ -329,20 +317,15 @@ export class Room {
     this.answersForCurrentQuestion.set(player.id, record)
     this.allAnswers.push(record)
 
-    // Notify the player their answer was accepted
     this.emit('answer:accepted', { questionId: currentQ.questionId }, params.socketId || player.socketId)
-
-    // Broadcast to room that player answered (for UI indicators)
     this.emit('room:player_answered', { playerId: player.id })
 
-    // If all connected non-host players (or all active players) have answered, auto-reveal!
     this.checkAllAnswered()
 
     return { success: true }
   }
 
   private checkAllAnswered(): void {
-    // Only non-host players are expected to answer questions unless host is playing alone
     const nonHostActive = Array.from(this.players.values()).filter(p => !p.disconnected && !p.isHost)
     const activePlayers = nonHostActive.length > 0
       ? nonHostActive
@@ -361,8 +344,6 @@ export class Room {
     }
   }
 
-  // --- Reveal & Leaderboard ---
-
   public revealCurrentQuestion(): void {
     this.clearTimers()
     this.phase = 'reveal'
@@ -377,7 +358,6 @@ export class Room {
       const correct = ans ? ans.correct : false
       const points = ans ? ans.pointsAwarded : 0
 
-      // If player didn't answer in time, reset streak
       if (!ans) {
         player.streak = 0
       }
@@ -426,18 +406,14 @@ export class Room {
     this.emit('leaderboard:update', leaderboardData)
   }
 
-  // --- Next Step / Finish ---
-
   public nextStep(): void {
     this.clearTimers()
 
-    // If currently in reveal phase, transition to leaderboard (or next question)
     if (this.phase === 'reveal') {
       this.showLeaderboard()
       return
     }
 
-    // If in leaderboard or reveal, advance to next question or finish
     if (this.currentQuestionIndex + 1 < this.questions.length) {
       this.showQuestion(this.currentQuestionIndex + 1)
     } else {
@@ -459,7 +435,6 @@ export class Room {
       streak: p.streak
     }))
 
-    // Compute stats
     const correctAnswersCount = this.allAnswers.filter(a => a.correct).length
     const avgResponseSec = this.responseTimesMs.length > 0
       ? Math.round((this.responseTimesMs.reduce((a, b) => a + b, 0) / this.responseTimesMs.length / 1000) * 10) / 10
@@ -470,7 +445,6 @@ export class Room {
       if (p.streak > highestStreak) highestStreak = p.streak
     }
 
-    // Determine hardest question
     const questionAccuracy = new Map<string, { total: number; correct: number }>()
     for (const ans of this.allAnswers) {
       const stat = questionAccuracy.get(ans.questionId) || { total: 0, correct: 0 }

@@ -23,7 +23,6 @@ export function attachRoomEventEmitter(room: Room, io: TypedServer): void {
 
 export function registerSocketHandlers(io: TypedServer, manager: RoomManager = roomManager): void {
   io.on('connection', (socket: TypedSocket) => {
-    // 1. Host creates room
     socket.on('room:create', async (data) => {
       try {
         const topic = data.topic?.trim() || 'Общие знания'
@@ -36,14 +35,11 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
           difficulty
         })
 
-        // Bind event emitter for room broadcasts
         attachRoomEventEmitter(room, io)
 
-        // Join socket room
         await socket.join(room.code)
         manager.associateSocket(socket.id, room.code)
 
-        // Add host as player
         const { player } = room.addOrReconnectPlayer({
           nickname: 'Хост',
           avatar: '👑',
@@ -55,7 +51,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
         socket.data.roomId = room.roomId
         socket.data.isHost = true
 
-        // Notify host
         socket.emit('room:created', {
           code: room.code,
           roomId: room.roomId
@@ -68,7 +63,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
       }
     })
 
-    // 2. Player joins room (or reconnects)
     socket.on('room:join', async (data) => {
       try {
         const code = (data.code || '').trim()
@@ -93,7 +87,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
           return
         }
 
-        // Attach emitter if not already attached
         attachRoomEventEmitter(room, io)
 
         await socket.join(room.code)
@@ -111,7 +104,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
         socket.data.roomId = room.roomId
         socket.data.isHost = player.isHost
 
-        // If reconnecting during an ongoing game, sync current phase data to player
         if (isReconnect) {
           if (room.phase === 'question') {
             const currentQ = room.getCurrentQuestion()
@@ -152,7 +144,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
       }
     })
 
-    // 3. Host starts game
     socket.on('game:start', async () => {
       try {
         const room = manager.getRoomBySocketId(socket.id)
@@ -172,7 +163,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
           return
         }
 
-        // Fetch questions from provider (fallback or AI)
         const provider = getQuestionProvider()
         const questions = await provider.getQuestions({
           topic: room.topic,
@@ -189,7 +179,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
       }
     })
 
-    // 4. Player submits answer
     socket.on('answer:submit', (data) => {
       try {
         const room = manager.getRoomBySocketId(socket.id)
@@ -225,7 +214,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
       }
     })
 
-    // 5. Host advances to next step (reveal -> leaderboard -> next question / finish)
     socket.on('game:next', () => {
       try {
         const room = manager.getRoomBySocketId(socket.id)
@@ -249,7 +237,6 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
       }
     })
 
-    // Disconnect
     socket.on('disconnect', () => {
       const room = manager.getRoomBySocketId(socket.id)
       if (room) {

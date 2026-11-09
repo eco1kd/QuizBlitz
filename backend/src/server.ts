@@ -27,7 +27,6 @@ export function createServer(): ServerInstance {
   }))
   app.use(express.json())
 
-  // Health and info endpoints
   app.get('/health', (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
@@ -59,7 +58,6 @@ export function createServer(): ServerInstance {
     }
   )
 
-  // Attach game engine WebSocket handlers
   registerSocketHandlers(io, roomManager)
 
   const start = (port = Number(process.env.PORT) || 3001): Promise<number> => {
@@ -75,7 +73,7 @@ export function createServer(): ServerInstance {
   const stop = (): Promise<void> => {
     return new Promise((resolve, reject) => {
       roomManager.clear()
-      io.close((err) => {
+      io.close(() => {
         if (httpServer.listening) {
           httpServer.close((httpErr) => {
             if (httpErr) return reject(httpErr)

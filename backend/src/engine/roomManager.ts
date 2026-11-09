@@ -2,15 +2,12 @@ import { Room, type CreateRoomOptions } from './room.js'
 import type { GameFinishedData } from '../types/game.js'
 
 export class RoomManager {
-  private roomsByCode: Map<string, Room> = new Map() // code -> Room
-  private codeByRoomId: Map<string, string> = new Map() // roomId -> code
-  private socketToRoomCode: Map<string, string> = new Map() // socketId -> code
+  private roomsByCode: Map<string, Room> = new Map()
+  private codeByRoomId: Map<string, string> = new Map()
+  private socketToRoomCode: Map<string, string> = new Map()
 
   private onGameFinishedHook?: (room: Room, finishedData: GameFinishedData) => void | Promise<void>
 
-  /**
-   * Generates a 6-digit numeric room code guaranteed to be unique among active rooms.
-   */
   public generateUniqueCode(): string {
     let attempts = 0
     while (attempts < 1000) {
@@ -20,7 +17,6 @@ export class RoomManager {
       }
       attempts++
     }
-    // Fallback if very crowded
     return Date.now().toString().slice(-6)
   }
 
@@ -93,7 +89,6 @@ export class RoomManager {
     this.codeByRoomId.delete(room.roomId)
     this.roomsByCode.delete(code)
 
-    // Remove any socket associations pointing to this room
     for (const [sId, rCode] of this.socketToRoomCode.entries()) {
       if (rCode === code) {
         this.socketToRoomCode.delete(sId)

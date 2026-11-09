@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import type { QuestionWithAnswer } from '../../types/game.js'
-import { DEFAULT_FALLBACK_QUESTIONS, type FallbackQuestionItem } from './fallbackQuestions.js'
+import { DEFAULT_FALLBACK_QUESTIONS } from './fallbackQuestions.js'
 
 export interface QuestionProvider {
   getQuestions(params: {
@@ -23,17 +23,12 @@ interface RawQuestion {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-/**
- * Shuffles options of a question and recalculates correctIndex.
- * Fulfills rule from Section 9: "Перемешивать варианты ответов на бэке"
- */
 export function shuffleQuestionOptions(q: RawQuestion): {
   options: [string, string, string, string]
   correctIndex: number
 } {
   const indexed = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correctIndex }))
 
-  // Fisher-Yates shuffle
   for (let i = indexed.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     const temp = indexed[i]
@@ -73,7 +68,7 @@ export class FallbackQuestionProvider implements QuestionProvider {
           this.cachedQuestions = JSON.parse(raw) as RawQuestion[]
           return this.cachedQuestions
         } catch {
-          // try next candidate
+          // ignore candidate failure
         }
       }
       this.cachedQuestions = DEFAULT_FALLBACK_QUESTIONS
@@ -92,12 +87,10 @@ export class FallbackQuestionProvider implements QuestionProvider {
     const all = await this.loadQuestions()
     const count = Math.max(1, params.count || 5)
 
-    // Filter by topic if possible (case-insensitive substring)
     const normalizedTopic = (params.topic || '').trim().toLowerCase()
     let pool = all.filter(q => (q.topic || '').toLowerCase().includes(normalizedTopic))
 
     if (pool.length < count) {
-      // Augment from general pool
       const remaining = all.filter(q => !pool.includes(q))
       pool = [...pool, ...remaining]
     }
@@ -106,11 +99,9 @@ export class FallbackQuestionProvider implements QuestionProvider {
       pool = all
     }
 
-    // Shuffle pool to pick random subset
     const shuffledPool = [...pool].sort(() => Math.random() - 0.5)
     const selected = shuffledPool.slice(0, count)
 
-    // Repeat if pool was smaller than requested count
     while (selected.length < count) {
       selected.push(all[selected.length % all.length])
     }
@@ -123,7 +114,7 @@ export class FallbackQuestionProvider implements QuestionProvider {
         options,
         correctIndex,
         explanation: raw.explanation || '',
-        timeLimit: 20, // standard 20s as per contract
+        timeLimit: 20,
         index: idx + 1,
         total: count
       }
