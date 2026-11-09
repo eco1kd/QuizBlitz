@@ -107,15 +107,19 @@ export class AiQuestionProvider implements QuestionProvider {
       }
 
       const data: any = await res.json()
-      const content: string = data.choices?.[0]?.message?.content?.trim() || ''
+      const rawContent: string = data.choices?.[0]?.message?.content?.trim() || ''
 
-      const cleanJson = content
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim()
+      const startIdx = rawContent.indexOf('[')
+      const endIdx = rawContent.lastIndexOf(']')
+      const cleanJson = (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx)
+        ? rawContent.substring(startIdx, endIdx + 1)
+        : rawContent
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim()
 
-      const parsed: GeneratedItem[] = JSON.parse(cleanJson)
+      const parsed: any[] = JSON.parse(cleanJson)
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         throw new Error('Ответ ИИ не является непустым массивом')
@@ -125,12 +129,13 @@ export class AiQuestionProvider implements QuestionProvider {
 
       for (let idx = 0; idx < parsed.length; idx++) {
         const item = parsed[idx]
-        if (!item.text || !Array.isArray(item.options) || item.options.length < 4) {
+        const qText = item.text || item.question || item.title
+        if (!qText || !Array.isArray(item.options) || item.options.length < 4) {
           continue
         }
 
         const raw = {
-          text: String(item.text),
+          text: String(qText),
           options: item.options.slice(0, 4).map(String),
           correctIndex: typeof item.correctIndex === 'number' && item.correctIndex >= 0 && item.correctIndex <= 3 ? item.correctIndex : 0,
           explanation: item.explanation || ''
