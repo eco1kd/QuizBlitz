@@ -12,6 +12,8 @@ import { DevToolbar } from './components/dev/DevToolbar'
 
 export function App() {
   const {
+    connectionMode,
+    switchConnectionMode,
     phase,
     roomInfo,
     roomPlayers,
@@ -26,8 +28,11 @@ export function App() {
     myStreak,
     errorMessage,
     isAutoMode,
+    createRoom,
+    joinRoom,
     startLobbyGame,
     submitAnswer,
+    nextStep,
     restartGame,
     toggleAutoMode,
     setDevPhase,
@@ -56,11 +61,19 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="hidden sm:inline">Mock WS Online</span>
-              <Wifi className="w-3.5 h-3.5 sm:hidden" />
-            </div>
+            {connectionMode === 'live' ? (
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="hidden sm:inline">Live WS (:3001)</span>
+                <Wifi className="w-3.5 h-3.5 sm:hidden" />
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-purple-300 font-medium bg-purple-500/10 px-2.5 py-0.5 rounded-full border border-purple-500/20">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                <span className="hidden sm:inline">Mock Mode</span>
+                <Wifi className="w-3.5 h-3.5 sm:hidden" />
+              </div>
+            )}
             <div className="flex items-center gap-1 text-gray-300 font-bold bg-[#202330] px-2.5 py-0.5 rounded-full border border-white/10">
               <span>{currentPlayer.avatar}</span>
               <span className="text-[11px] truncate max-w-[90px]">{currentPlayer.nickname}</span>
@@ -114,6 +127,8 @@ export function App() {
                 players={roomPlayers}
                 onStartGame={startLobbyGame}
                 onAddBot={addBotPlayer}
+                onCreateRoom={createRoom}
+                onJoinRoom={joinRoom}
               />
             </motion.div>
           )}
@@ -166,6 +181,8 @@ export function App() {
                 revealData={revealData}
                 myResult={myResult}
                 selectedOption={selectedOption}
+                isHost={roomInfo.isHost}
+                onNext={nextStep}
               />
             </motion.div>
           )}
@@ -182,6 +199,8 @@ export function App() {
               <LeaderboardScreen
                 leaderboard={leaderboard}
                 currentPlayerId={currentPlayer.id}
+                isHost={roomInfo.isHost}
+                onNext={nextStep}
               />
             </motion.div>
           )}
@@ -208,6 +227,8 @@ export function App() {
       {/* Dev-пульт тестирования */}
       <DevToolbar
         currentPhase={phase}
+        connectionMode={connectionMode}
+        onSwitchConnectionMode={switchConnectionMode}
         isAutoMode={isAutoMode}
         onToggleAuto={toggleAutoMode}
         onSetPhase={setDevPhase}

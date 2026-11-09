@@ -13,6 +13,8 @@ export interface Player {
   isCurrentPlayer?: boolean
   answered?: boolean
   isHost?: boolean
+  disconnected?: boolean
+  socketId?: string
 }
 
 export interface PlayerResult {

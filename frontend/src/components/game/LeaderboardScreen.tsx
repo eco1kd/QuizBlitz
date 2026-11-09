@@ -1,16 +1,21 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, TrendingUp, TrendingDown, Minus, Flame } from 'lucide-react'
+import { Trophy, TrendingUp, TrendingDown, Minus, Flame, ArrowRight } from 'lucide-react'
 import type { LeaderboardData } from '../../types/game'
+import { sounds } from '../../services/soundEffects'
 
 interface LeaderboardScreenProps {
   leaderboard: LeaderboardData
   currentPlayerId: string
+  isHost?: boolean
+  onNext?: () => void
 }
 
 export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   leaderboard,
-  currentPlayerId
+  currentPlayerId,
+  isHost = false,
+  onNext
 }) => {
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-4 flex flex-col justify-between flex-1 select-none">
@@ -124,10 +129,26 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
         </AnimatePresence>
       </div>
 
-      <div className="mt-4 text-center">
-        <span className="text-xs text-purple-300/80 font-medium animate-pulse">
-          ⚡ Загрузка следующего испытания...
-        </span>
+      <div className="mt-4 flex items-center justify-center">
+        {isHost && onNext ? (
+          <motion.button
+            type="button"
+            onClick={() => {
+              sounds.playClick()
+              onNext()
+            }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            className="px-6 py-3 rounded-full bg-gradient-to-r from-purple-600 to-cyan-500 text-white font-extrabold text-sm shadow-lg flex items-center gap-2 cursor-pointer border border-white/20"
+          >
+            <span>Следующий вопрос</span>
+            <ArrowRight className="w-4 h-4" />
+          </motion.button>
+        ) : (
+          <span className="text-xs text-purple-300/80 font-medium animate-pulse">
+            ⚡ Загрузка следующего испытания...
+          </span>
+        )}
       </div>
     </div>
   )

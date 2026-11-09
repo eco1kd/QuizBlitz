@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Check, X, Flame, Lightbulb } from 'lucide-react'
+import { Check, X, Flame, Lightbulb, ArrowRight } from 'lucide-react'
 import type { PlayerResult, QuestionData, QuestionRevealData } from '../../types/game'
 import { AnswerCard } from './AnswerCard'
 import { sounds } from '../../services/soundEffects'
@@ -10,13 +10,17 @@ interface RevealScreenProps {
   revealData: QuestionRevealData
   myResult: PlayerResult | null
   selectedOption: number | null
+  isHost?: boolean
+  onNext?: () => void
 }
 
 export const RevealScreen: React.FC<RevealScreenProps> = ({
   question,
   revealData,
   myResult,
-  selectedOption
+  selectedOption,
+  isHost = false,
+  onNext
 }) => {
   const isCorrect = myResult?.correct ?? false
   const points = myResult?.points ?? 0
@@ -99,7 +103,7 @@ export const RevealScreen: React.FC<RevealScreenProps> = ({
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#202330] border border-white/10 rounded-[24px] p-3.5 sm:p-4 text-left shadow-md flex items-start gap-3"
+          className="bg-[#202330] border border-white/10 rounded-[24px] p-3.5 sm:p-4 text-left shadow-md flex items-start gap-3 mb-3"
         >
           <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mt-0.5">
             <Lightbulb className="w-4 h-4" />
@@ -115,11 +119,27 @@ export const RevealScreen: React.FC<RevealScreenProps> = ({
         </motion.div>
       )}
 
-      {/* Сообщение о переходе к лидерборду */}
-      <div className="mt-3 text-center">
-        <span className="text-xs text-purple-300 font-semibold animate-pulse">
-          Переходим к таблице лидеров...
-        </span>
+      {/* Кнопка перехода к таблице лидеров */}
+      <div className="mt-2 flex items-center justify-center">
+        {isHost && onNext ? (
+          <motion.button
+            type="button"
+            onClick={() => {
+              sounds.playClick()
+              onNext()
+            }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            className="px-6 py-3 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-sm shadow-lg flex items-center gap-2 cursor-pointer border border-white/20"
+          >
+            <span>К таблице лидеров</span>
+            <ArrowRight className="w-4 h-4" />
+          </motion.button>
+        ) : (
+          <span className="text-xs text-purple-300 font-semibold animate-pulse">
+            Переходим к таблице лидеров...
+          </span>
+        )}
       </div>
     </div>
   )
