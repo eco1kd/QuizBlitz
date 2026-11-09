@@ -73,12 +73,20 @@ export class LiveSocketService {
       this.isConnected = true
       this.emitLocal('connection:status', { connected: true, mode: 'live' })
 
-      if (autoCreateRoom && (!this.roomInfo.roomId || this.roomInfo.code === '------')) {
-        this.createRoom({
-          topic: this.roomInfo.topic,
-          questionCount: this.roomInfo.questionCount,
-          difficulty: this.roomInfo.difficulty
-        })
+      if (autoCreateRoom) {
+        if (!this.roomInfo.isHost && this.roomInfo.code && this.roomInfo.code !== '------') {
+          this.joinRoom({
+            code: this.roomInfo.code,
+            nickname: this.currentPlayer.nickname,
+            avatar: this.currentPlayer.avatar
+          })
+        } else {
+          this.createRoom({
+            topic: this.roomInfo.topic || 'Космос, Наука и ИИ',
+            questionCount: this.roomInfo.questionCount || 5,
+            difficulty: this.roomInfo.difficulty || 'medium'
+          })
+        }
       }
     })
 
@@ -181,6 +189,14 @@ export class LiveSocketService {
     })
 
     socket.on('error', (err: GameError) => {
+      console.warn('[LiveSocket] Error from server:', err)
+      if (err.code === 'NOT_IN_ROOM' && this.roomInfo.isHost) {
+        this.createRoom({
+          topic: this.roomInfo.topic || 'Космос, Наука и ИИ',
+          questionCount: this.roomInfo.questionCount || 5,
+          difficulty: this.roomInfo.difficulty || 'medium'
+        })
+      }
       this.emitLocal('error', err)
     })
   }

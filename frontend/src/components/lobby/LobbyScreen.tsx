@@ -27,6 +27,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
   const [copied, setCopied] = useState(false)
   const [showQRModal, setShowQRModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'lobby' | 'join' | 'create'>('lobby')
+  const [isStarting, setIsStarting] = useState(false)
 
   // Стейт входа по коду
   const [joinCode, setJoinCode] = useState('')
@@ -46,8 +47,12 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
   }
 
   const handleStart = () => {
+    if (isStarting) return
+    setIsStarting(true)
     sounds.playCorrect()
     onStartGame()
+    // Сбросить состояние через 35 сек на случай отмены/ошибки
+    setTimeout(() => setIsStarting(false), 35000)
   }
 
   const handleQuickAddBot = () => {
@@ -507,13 +512,25 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
               <motion.button
                 type="button"
                 onClick={handleStart}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
+                disabled={isStarting}
+                whileHover={{ scale: isStarting ? 1 : 1.02 }}
+                whileTap={{ scale: isStarting ? 1 : 0.95 }}
                 transition={{ type: 'spring', stiffness: 450, damping: 25 }}
-                className="w-full py-4 sm:py-4.5 rounded-[28px] bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-black text-lg sm:text-xl shadow-2xl shadow-purple-900/50 flex items-center justify-center gap-2.5 cursor-pointer border border-white/20"
+                className={`w-full py-4 sm:py-4.5 rounded-[28px] bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-black text-lg sm:text-xl shadow-2xl shadow-purple-900/50 flex items-center justify-center gap-2.5 border border-white/20 transition-all ${
+                  isStarting ? 'opacity-90 cursor-wait animate-pulse' : 'cursor-pointer hover:brightness-110'
+                }`}
               >
-                <Play className="w-6 h-6 fill-current" />
-                Начать игру
+                {isStarting ? (
+                  <>
+                    <Sparkles className="w-6 h-6 animate-spin text-cyan-200" />
+                    <span>Claude Sonnet генерирует {roomInfo.questionCount} вопросов... 🧠</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-6 h-6 fill-current" />
+                    <span>Начать игру 🚀</span>
+                  </>
+                )}
               </motion.button>
             ) : (
               <div className="w-full py-4 rounded-[28px] bg-[#202330] border border-purple-500/30 text-purple-300 font-bold text-sm sm:text-base text-center animate-pulse">

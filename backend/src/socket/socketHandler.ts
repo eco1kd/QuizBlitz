@@ -40,6 +40,8 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
         await socket.join(room.code)
         manager.associateSocket(socket.id, room.code)
 
+        console.log(`[Socket] room:created -> код: ${room.code}, тема: «${topic}», вопросов: ${count}, сложность: ${difficulty}`)
+
         const { player } = room.addOrReconnectPlayer({
           nickname: 'Хост',
           avatar: '👑',
@@ -148,6 +150,7 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
       try {
         const room = manager.getRoomBySocketId(socket.id)
         if (!room) {
+          console.warn(`[Socket] game:start failed: socket ${socket.id} is NOT in any room`)
           socket.emit('error', { code: 'NOT_IN_ROOM', message: 'Вы не находитесь в комнате' })
           return
         }
@@ -163,6 +166,7 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
           return
         }
 
+        console.log(`[Socket] game:start -> комната ${room.code}: запрашиваем ${room.questionCount} вопросов (тема: «${room.topic}»)...`)
         const provider = getQuestionProvider()
         const questions = await provider.getQuestions({
           topic: room.topic,
@@ -170,8 +174,10 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
           difficulty: room.difficulty
         })
 
+        console.log(`[Socket] game:start -> получено ${questions.length} вопросов, запускаем игру!`)
         room.startGame(questions)
       } catch (err: any) {
+        console.error(`[Socket] game:start error:`, err?.message || err)
         socket.emit('error', {
           code: 'GAME_START_FAILED',
           message: err?.message || 'Ошибка запуска игры'

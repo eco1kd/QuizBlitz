@@ -30,7 +30,7 @@ export class AiQuestionProvider implements QuestionProvider {
     this.baseUrl = (cfg.baseUrl || process.env.AI_BASE_URL || 'https://anymodel.ghostly.su/v1').replace(/\/+$/, '')
     this.apiKey = (cfg.apiKey || process.env.AI_API_KEY || '').trim()
     this.model = cfg.model || process.env.AI_MODEL || 'gpt-4o-mini'
-    this.timeoutMs = cfg.timeoutMs || 15000
+    this.timeoutMs = cfg.timeoutMs || 60000
   }
 
   public setApiKey(key: string) {
@@ -94,7 +94,8 @@ export class AiQuestionProvider implements QuestionProvider {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          temperature: 0.7
+          temperature: 0.7,
+          max_tokens: 3500
         }),
         signal: controller.signal
       })
