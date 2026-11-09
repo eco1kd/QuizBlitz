@@ -523,7 +523,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({
                 {isStarting ? (
                   <>
                     <Sparkles className="w-6 h-6 animate-spin text-cyan-200" />
-                    <span>Claude Sonnet генерирует {roomInfo.questionCount} вопросов... 🧠</span>
+                    <span>ИИ генерирует вопросы... 🧠</span>
                   </>
                 ) : (
                   <>
