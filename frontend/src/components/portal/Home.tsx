@@ -1,43 +1,43 @@
-import { ArrowRight, Plus, Sparkles, Users, Zap, ScanLine } from 'lucide-react'
-import { Flower, TopicArt, ArrowCircle } from './UI'
-import { useState, type FormEvent } from 'react'
+import { ArrowRight, Plus, Sparkles, Users, Zap, ScanLine } from "lucide-react";
+import { Flower, TopicArt, ArrowCircle } from "./UI";
+import { useState, type FormEvent } from "react";
 const topics = [
   {
-    title: 'На орбите',
-    topic: 'Космос и планеты',
-    label: 'КОСМОС',
-    kind: 'space' as const,
+    title: "На орбите",
+    topic: "Космос и планеты",
+    label: "КОСМОС",
+    kind: "space" as const,
   },
   {
-    title: 'Это база. Кино.',
-    topic: 'Кино и поп-культура',
-    label: 'ПОП-КУЛЬТУРА',
-    kind: 'culture' as const,
+    title: "Кино и сериалы",
+    topic: "Кино и поп-культура",
+    label: "ПОП-КУЛЬТУРА",
+    kind: "culture" as const,
   },
   {
-    title: 'Чистая наука',
-    topic: 'Удивительная наука',
-    label: 'НАУКА',
-    kind: 'science' as const,
+    title: "Чистая наука",
+    topic: "Удивительная наука",
+    label: "НАУКА",
+    kind: "science" as const,
   },
   {
-    title: 'Всего понемногу',
-    topic: 'Общие знания',
-    label: 'МИКС',
-    kind: 'random' as const,
+    title: "Всего понемногу",
+    topic: "Общие знания",
+    label: "МИКС",
+    kind: "random" as const,
   },
-]
+];
 export function Home({
   onCreate,
   onJoin,
 }: {
-  onCreate: (topic?: string) => void
-  onJoin: (code?: string) => void
+  onCreate: (topic?: string) => void;
+  onJoin: (code?: string) => void;
 }) {
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState("");
   function join(event: FormEvent) {
-    event.preventDefault()
-    onJoin(code)
+    event.preventDefault();
+    onJoin(code);
   }
   return (
     <>
@@ -62,7 +62,7 @@ export function Home({
           <h2>
             Есть вопрос.
             <br />
-            Будет{' '}
+            Будет{" "}
             <span className="hero-word">
               баттл
               <svg viewBox="0 0 250 16" aria-hidden="true">
@@ -133,7 +133,7 @@ export function Home({
           </div>
           <h2>
             Залетай
-            <br />в комнату<span>↗</span>
+            <br /> в комнату<span>↗</span>
           </h2>
           <p>
             Друзья создали игру?
@@ -151,7 +151,7 @@ export function Home({
               pattern="[0-9]{6}"
               maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder="000 000"
               required
             />
@@ -199,16 +199,12 @@ export function Home({
           <Flower>
             <Zap size={25} fill="currentColor" />
           </Flower>
-          <h3>
-            От идеи
-            <br />
-            до «ещё одну!»
-          </h3>
+          <h3>От идеи до «ещё одну!»</h3>
         </div>
         {[
-          ['01', 'Задай тему', 'ИИ соберёт вопросы за тебя'],
-          ['02', 'Позови своих', 'Отправь код или QR друзьям'],
-          ['03', 'Лови момент', 'Отвечай быстрее. Забирай очки.'],
+          ["01", "Задай тему", "ИИ соберёт вопросы за тебя"],
+          ["02", "Позови своих", "Отправь код или QR друзьям"],
+          ["03", "Лови момент", "Отвечай быстрее. Забирай очки."],
         ].map(([n, title, text]) => (
           <div className="how-step" key={n}>
             <span>{n}</span>
@@ -220,5 +216,5 @@ export function Home({
         ))}
       </section>
     </>
-  )
+  );
 }

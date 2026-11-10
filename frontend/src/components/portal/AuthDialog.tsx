@@ -56,7 +56,7 @@ export function AuthDialog({
       <div className="segmented auth-tabs" aria-label="Способ входа">
         {(
           [
-            ['guest', 'Быстрый вход'],
+            ['guest', 'Гость'],
             ['login', 'Войти'],
             ['register', 'Регистрация'],
           ] as const

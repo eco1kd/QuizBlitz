@@ -39,6 +39,7 @@ export function GameStage({
           question={e.question}
           selectedOption={e.selectedOption}
           onSelectOption={e.submitAnswer}
+          disabled={!e.connected}
         />
       )}
       {e.phase === 'waiting' && e.question && (

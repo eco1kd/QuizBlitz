@@ -51,7 +51,7 @@ export function Dialog({
         >
           <X size={22} />
         </button>
-        <div className="eyebrow">LET’S PLAY TOGETHER</div>
+        <div className="eyebrow">ИГРАЕМ ВМЕСТЕ</div>
         <h2 id="dialog-heading">{title}</h2>
         {subtitle && <p className="muted">{subtitle}</p>}
         {children}
