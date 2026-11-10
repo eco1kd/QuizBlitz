@@ -1,242 +1,429 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import { AlertCircle, Wifi, Zap } from 'lucide-react'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import {
+  ArrowRight,
+  CircleHelp,
+  Home as HomeIcon,
+  History,
+  Plus,
+  UserRound,
+  X,
+  Zap,
+  RotateCcw,
+} from 'lucide-react'
 import { useGameEngine } from './hooks/useGameEngine'
-import { GameHeader } from './components/game/GameHeader'
-import { LobbyScreen } from './components/lobby/LobbyScreen'
-import { QuestionScreen } from './components/game/QuestionScreen'
-import { WaitingScreen } from './components/game/WaitingScreen'
-import { RevealScreen } from './components/game/RevealScreen'
-import { LeaderboardScreen } from './components/game/LeaderboardScreen'
-import { PodiumScreen } from './components/game/PodiumScreen'
-import { DevToolbar } from './components/dev/DevToolbar'
+import {
+  AUTH_DEMO,
+  authenticate,
+  getSession,
+  saveSession,
+  recordDemoGame,
+  type Session,
+} from './services/account'
+import { Brand, Dialog } from './components/portal/UI'
+import { Home } from './components/portal/Home'
+import { AuthDialog, JoinDialog } from './components/portal/AuthDialog'
+import { CreateGame } from './components/portal/CreateGame'
+import { RoomLobby } from './components/portal/RoomLobby'
+import { Account } from './components/portal/Account'
+const GameStage = lazy(() =>
+  import('./components/portal/GameStage').then((module) => ({
+    default: module.GameStage,
+  })),
+)
+import './portal.css'
 
+type Page = 'home' | 'create' | 'profile' | 'history'
+const route = (): Page => {
+  const value = location.hash.slice(1)
+  return ['create', 'profile', 'history'].includes(value)
+    ? (value as Page)
+    : 'home'
+}
 export function App() {
-  const {
-    connectionMode,
-    switchConnectionMode,
-    phase,
-    roomInfo,
-    roomPlayers,
-    question,
-    timeRemaining,
-    selectedOption,
-    revealData,
-    leaderboard,
-    finishedData,
-    myResult,
-    myScore,
-    myStreak,
-    errorMessage,
-    isAutoMode,
-    createRoom,
-    joinRoom,
-    startLobbyGame,
-    submitAnswer,
-    nextStep,
-    restartGame,
-    toggleAutoMode,
-    setDevPhase,
-    triggerDevError,
-    addBotPlayer,
-    currentPlayer
-  } = useGameEngine()
-
+  const engine = useGameEngine()
+  const [page, setPage] = useState<Page>(route)
+  const [session, setSession] = useState<Session | null>(getSession)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authIntent, setAuthIntent] = useState<Page>('home')
+  const [joinOpen, setJoinOpen] = useState(
+    () =>
+      location.hash === '#join' ||
+      new URLSearchParams(location.search).has('code'),
+  )
+  const [joinCode, setJoinCode] = useState(() =>
+    (new URLSearchParams(location.search).get('code') || '')
+      .replace(/\D/g, '')
+      .slice(0, 6),
+  )
+  const [topic, setTopic] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [leaveTarget, setLeaveTarget] = useState<Page | null>(null)
+  const user = session?.user || null
+  useEffect(() => {
+    const sync = () => {
+      setPage(route())
+      if (location.hash === '#join') setJoinOpen(true)
+    }
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
+  useEffect(() => {
+    if (user) engine.setIdentity(user)
+  }, [user, engine.setIdentity])
+  useEffect(() => {
+    if (
+      !engine.finishedData ||
+      !user ||
+      engine.connectionMode !== 'mock' ||
+      !AUTH_DEMO
+    )
+      return
+    const mine = engine.finishedData.leaderboard.find(
+      (player) => player.id === engine.currentPlayer.id,
+    )
+    if (mine)
+      recordDemoGame(user.id, {
+        id: engine.roomInfo.roomId,
+        topic: engine.roomInfo.topic,
+        playedAt: new Date().toISOString(),
+        score: mine.score,
+        rank: mine.rank,
+        players: engine.finishedData.leaderboard.length,
+        questionCount: engine.finishedData.stats.totalQuestions,
+      })
+  }, [
+    engine.finishedData,
+    user,
+    engine.connectionMode,
+    engine.currentPlayer.id,
+    engine.roomInfo.roomId,
+    engine.roomInfo.topic,
+  ])
+  function navigate(next: Page) {
+    location.hash = next
+    setPage(next)
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+  function nav(next: Page) {
+    if (engine.hasRoom) setLeaveTarget(next)
+    else navigate(next)
+  }
+  function create(nextTopic = '') {
+    setTopic(nextTopic)
+    if (engine.hasRoom) {
+      setLeaveTarget('create')
+      return
+    }
+    if (!user) {
+      setAuthIntent('create')
+      setAuthOpen(true)
+    } else navigate('create')
+  }
+  function openJoin(code = '') {
+    setJoinCode(code)
+    setJoinOpen(true)
+  }
+  function acceptSession(next: Session) {
+    saveSession(next)
+    setSession(next)
+    engine.setIdentity(next.user)
+    setAuthOpen(false)
+    navigate(authIntent)
+  }
+  async function join(code: string, nickname: string) {
+    let next = session
+    if (!next) {
+      next = await authenticate('guest', {
+        nickname,
+        email: '',
+        password: '',
+        avatar: '⚡',
+      })
+      saveSession(next)
+      setSession(next)
+    }
+    engine.setIdentity(next.user)
+    await engine.joinRoom({ code, nickname, avatar: next.user.avatar })
+    setJoinOpen(false)
+    history.replaceState(null, '', `${location.pathname}#lobby`)
+    window.scrollTo(0, 0)
+  }
+  function leave() {
+    const next = leaveTarget || 'home'
+    engine.leaveRoom()
+    setLeaveTarget(null)
+    navigate(next)
+  }
+  const gameActive = engine.hasRoom && engine.phase !== 'lobby'
+  const navItems = [
+    { page: 'home' as Page, icon: HomeIcon, label: 'Главная' },
+    { page: 'create' as Page, icon: Plus, label: 'Создать' },
+    { page: 'history' as Page, icon: History, label: 'История' },
+    { page: 'profile' as Page, icon: UserRound, label: 'Профиль' },
+  ]
   return (
-    <div className="min-h-screen bg-[#0f111a] text-white flex flex-col justify-between relative selection:bg-purple-500 selection:text-white">
-      {/* Фоновые градиентные свечения в стиле Material 3 Expressive */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-80 bg-purple-600/10 blur-[120px] pointer-events-none rounded-full" />
-      <div className="fixed bottom-0 right-0 w-96 h-96 bg-cyan-600/10 blur-[130px] pointer-events-none rounded-full" />
-
-      {/* Верхний статус-бар комнаты */}
-      <div className="w-full border-b border-white/5 bg-[#141622]/80 backdrop-blur-md px-4 py-2 z-10 select-none">
-        <div className="max-w-3xl mx-auto flex items-center justify-between text-xs text-gray-400">
-          <div className="flex items-center gap-2 font-bold tracking-wide">
-            <span className="flex items-center gap-1 text-purple-400 font-extrabold text-sm">
-              <Zap className="w-4 h-4 fill-purple-400" /> QuizBlitz
-            </span>
-            <span className="text-gray-600">/</span>
-            <span className="bg-white/10 text-gray-200 px-2 py-0.5 rounded-full font-mono text-[11px]">
-              Код: {roomInfo.code.slice(0, 3)}-{roomInfo.code.slice(3)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {connectionMode === 'live' ? (
-              <div className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden sm:inline">Live WS (:3001)</span>
-                <Wifi className="w-3.5 h-3.5 sm:hidden" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-purple-300 font-medium bg-purple-500/10 px-2.5 py-0.5 rounded-full border border-purple-500/20">
-                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-                <span className="hidden sm:inline">Mock Mode</span>
-                <Wifi className="w-3.5 h-3.5 sm:hidden" />
-              </div>
-            )}
-            <div className="flex items-center gap-1 text-gray-300 font-bold bg-[#202330] px-2.5 py-0.5 rounded-full border border-white/10">
-              <span>{currentPlayer.avatar}</span>
-              <span className="text-[11px] truncate max-w-[90px]">{currentPlayer.nickname}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Всплывающий тост сетевой ошибки */}
-      <AnimatePresence>
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-rose-500/90 text-white backdrop-blur-md px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-rose-300/30 text-sm font-semibold"
+    <div className="qb-app">
+      <a className="skip-link" href="#main-content">
+        К содержимому
+      </a>
+      <aside className="nav-rail">
+        <button
+          className="logo-button"
+          aria-label="QuizBlitz — главная"
+          onClick={() => nav('home')}
+        >
+          <Brand compact />
+        </button>
+        <nav aria-label="Главная навигация">
+          {navItems.map((item) => (
+            <button
+              key={item.page}
+              className={page === item.page && !engine.hasRoom ? 'active' : ''}
+              aria-current={
+                page === item.page && !engine.hasRoom ? 'page' : undefined
+              }
+              onClick={() =>
+                item.page === 'create' ? create() : nav(item.page)
+              }
+            >
+              <span>
+                <item.icon size={23} />
+              </span>
+              <small>{item.label}</small>
+            </button>
+          ))}
+        </nav>
+        <button
+          className="rail-help"
+          onClick={() => setHelpOpen(true)}
+          aria-label="Как играть"
+        >
+          <CircleHelp size={23} />
+        </button>
+        <span className="rail-footer">
+          PLAY
+          <br />
+          YOUR WAY
+        </span>
+      </aside>
+      <div className="app-body">
+        <header className="app-header">
+          <button
+            className="logo-button"
+            onClick={() => nav('home')}
+            aria-label="QuizBlitz — главная"
           >
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="flex-1">{errorMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Верхний игровой хедер с таймером и счетом (скрыт в лобби и на финальном экране) */}
-      {question && phase !== 'lobby' && phase !== 'finished' && (
-        <GameHeader
-          currentIndex={question.index}
-          totalQuestions={question.total}
-          score={myScore}
-          streak={myStreak}
-          timeRemaining={timeRemaining}
-          timeLimit={question.timeLimit}
-          showTimer={phase === 'question' || phase === 'waiting'}
+            <Brand />
+          </button>
+          <span className="header-tagline">Любопытство объединяет.</span>
+          <div className="header-actions">
+            <button className="header-help" onClick={() => setHelpOpen(true)}>
+              <CircleHelp size={17} />
+              Как играть
+            </button>
+            {user ? (
+              <button className="user-chip" onClick={() => nav('profile')}>
+                <span>{user.avatar}</span>
+                <strong>{user.nickname}</strong>
+              </button>
+            ) : (
+              <button
+                className="button small outline"
+                onClick={() => {
+                  setAuthIntent(page)
+                  setAuthOpen(true)
+                }}
+              >
+                Войти
+                <UserRound size={17} />
+              </button>
+            )}
+          </div>
+        </header>
+        <main
+          id="main-content"
+          className={`main-content ${gameActive ? 'is-game' : ''}`}
+        >
+          {engine.connectionMode === 'live' && !engine.connected && (
+            <div className="connection-banner" role="status">
+              <span>
+                Нет связи с игровым сервером. Восстанавливаем подключение…
+              </span>
+              <button onClick={engine.reconnect}>
+                <RotateCcw size={16} />
+                Повторить
+              </button>
+            </div>
+          )}
+          {engine.hasRoom && engine.errorMessage && (
+            <div className="error-banner" role="alert">
+              <span>{engine.errorMessage}</span>
+              <button
+                aria-label="Закрыть сообщение"
+                onClick={engine.clearError}
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )}
+          {gameActive ? (
+            <Suspense
+              fallback={
+                <div className="loading-state" role="status">
+                  Открываем игру…
+                </div>
+              }
+            >
+              <GameStage
+                engine={engine}
+                onExit={() => setLeaveTarget('home')}
+                onReplay={() => {
+                  setTopic(engine.roomInfo.topic)
+                  engine.leaveRoom()
+                  navigate('create')
+                }}
+              />
+            </Suspense>
+          ) : engine.hasRoom ? (
+            <RoomLobby engine={engine} onLeave={() => setLeaveTarget('home')} />
+          ) : page === 'home' ? (
+            <Home onCreate={create} onJoin={openJoin} />
+          ) : page === 'create' ? (
+            user ? (
+              <CreateGame
+                initialTopic={topic}
+                demo={engine.connectionMode === 'mock'}
+                onBack={() => navigate('home')}
+                onCreate={async (options) => {
+                  await engine.createRoom(options)
+                  location.hash = 'lobby'
+                  window.scrollTo(0, 0)
+                }}
+              />
+            ) : (
+              <div className="surface empty-state">
+                <h1>Кто сегодня ведущий?</h1>
+                <p>Выбери ник, чтобы создать свою комнату.</p>
+                <button
+                  className="button primary"
+                  onClick={() => {
+                    setAuthIntent('create')
+                    setAuthOpen(true)
+                  }}
+                >
+                  Представиться
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            )
+          ) : (
+            <Account
+              key={`${page}-${user?.id}`}
+              user={user}
+              historyOnly={page === 'history'}
+              onLogin={() => {
+                setAuthIntent(page)
+                setAuthOpen(true)
+              }}
+              onLogout={() => {
+                saveSession(null)
+                engine.leaveRoom()
+                setSession(null)
+                navigate('home')
+              }}
+              onCreate={create}
+            />
+          )}
+        </main>
+        <footer className="app-footer">
+          <span>
+            <Zap size={14} />
+            QuizBlitz · Сделано для игры вместе
+          </span>
+          <span>
+            {engine.connectionMode === 'mock'
+              ? 'Демо · без подключения к серверу'
+              : AUTH_DEMO
+                ? 'Игра онлайн · демо-профиль'
+                : 'Всё готово к игре'}
+            <span className="footer-dot" />
+            RU
+          </span>
+        </footer>
+      </div>
+      {authOpen && (
+        <AuthDialog
+          onClose={() => setAuthOpen(false)}
+          onSuccess={acceptSession}
         />
       )}
-
-      {/* Основная интерактивная зона с плавным переходом между фазами игры */}
-      <main className="flex-1 flex flex-col justify-center py-2 relative z-10">
-        <AnimatePresence mode="wait">
-          {phase === 'lobby' && (
-            <motion.div
-              key="lobby-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col justify-center"
+      {joinOpen && (
+        <JoinDialog
+          initialCode={joinCode}
+          nickname={user?.nickname || ''}
+          demo={engine.connectionMode === 'mock'}
+          onClose={() => {
+            setJoinOpen(false)
+            history.replaceState(null, '', `${location.pathname}#${page}`)
+          }}
+          onJoin={join}
+        />
+      )}
+      {helpOpen && (
+        <Dialog
+          title="Три шага до азарта"
+          subtitle="Играй с друзьями, одноклассниками или всей командой."
+          onClose={() => setHelpOpen(false)}
+        >
+          <ol className="help-list">
+            <li>
+              <strong>Создай свою викторину</strong>
+              <p>Выбери тему, количество вопросов и сложность.</p>
+            </li>
+            <li>
+              <strong>Собери компанию</strong>
+              <p>
+                Друзья вводят 6-значный код или сканируют QR. Ведущий запускает
+                игру, когда все готовы.
+              </p>
+            </li>
+            <li>
+              <strong>Отвечай и поднимайся в рейтинге</strong>
+              <p>
+                На вопрос — 20 секунд. Чем быстрее правильный ответ, тем больше
+                очков.
+              </p>
+            </li>
+          </ol>
+          <button
+            className="button primary full"
+            onClick={() => setHelpOpen(false)}
+          >
+            Всё понятно
+            <ArrowRight size={18} />
+          </button>
+        </Dialog>
+      )}
+      {leaveTarget && (
+        <Dialog
+          title="Выйти из комнаты?"
+          subtitle="Ты отключишься от этой игры. Остальные игроки останутся в комнате."
+          onClose={() => setLeaveTarget(null)}
+        >
+          <div className="dialog-actions">
+            <button
+              className="button outline"
+              onClick={() => setLeaveTarget(null)}
             >
-              <LobbyScreen
-                roomInfo={roomInfo}
-                players={roomPlayers}
-                onStartGame={startLobbyGame}
-                onAddBot={addBotPlayer}
-                onCreateRoom={createRoom}
-                onJoinRoom={joinRoom}
-              />
-            </motion.div>
-          )}
-
-          {phase === 'question' && question && (
-            <motion.div
-              key="question-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col justify-center"
-            >
-              <QuestionScreen
-                question={question}
-                selectedOption={selectedOption}
-                onSelectOption={submitAnswer}
-              />
-            </motion.div>
-          )}
-
-          {phase === 'waiting' && question && (
-            <motion.div
-              key="waiting-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col justify-center"
-            >
-              <WaitingScreen
-                question={question}
-                selectedOption={selectedOption}
-                timeRemaining={timeRemaining}
-              />
-            </motion.div>
-          )}
-
-          {phase === 'reveal' && question && revealData && (
-            <motion.div
-              key="reveal-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col justify-center"
-            >
-              <RevealScreen
-                question={question}
-                revealData={revealData}
-                myResult={myResult}
-                selectedOption={selectedOption}
-                isHost={roomInfo.isHost}
-                onNext={nextStep}
-              />
-            </motion.div>
-          )}
-
-          {phase === 'leaderboard' && leaderboard && (
-            <motion.div
-              key="leaderboard-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col justify-center"
-            >
-              <LeaderboardScreen
-                leaderboard={leaderboard}
-                currentPlayerId={currentPlayer.id}
-                isHost={roomInfo.isHost}
-                onNext={nextStep}
-              />
-            </motion.div>
-          )}
-
-          {phase === 'finished' && finishedData && (
-            <motion.div
-              key="podium-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col justify-center"
-            >
-              <PodiumScreen
-                finishedData={finishedData}
-                currentPlayerId={currentPlayer.id}
-                onRestart={restartGame}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-
-      {/* Dev-пульт тестирования */}
-      <DevToolbar
-        currentPhase={phase}
-        connectionMode={connectionMode}
-        onSwitchConnectionMode={switchConnectionMode}
-        isAutoMode={isAutoMode}
-        onToggleAuto={toggleAutoMode}
-        onSetPhase={setDevPhase}
-        onTriggerError={triggerDevError}
-        onRestart={restartGame}
-      />
+              Остаться
+            </button>
+            <button className="button primary" onClick={leave}>
+              Выйти
+            </button>
+          </div>
+        </Dialog>
+      )}
     </div>
   )
 }
-
 export default App

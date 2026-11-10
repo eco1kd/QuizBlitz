@@ -7,7 +7,7 @@ import type {
   PlayerResult,
   QuestionData,
   QuestionRevealData,
-  RoomInfo
+  RoomInfo,
 } from '../types/game'
 import { MOCK_QUESTIONS, type QuestionWithAnswer } from './mockQuestions'
 
@@ -19,6 +19,7 @@ export class MockGameServer {
   private currentQuestionIdx = 0
   private timerInterval: number | null = null
   private autoAdvanceTimer: number | null = null
+  private botTimers: number[] = []
 
   public roomInfo: RoomInfo = {
     code: '849215',
@@ -26,7 +27,7 @@ export class MockGameServer {
     topic: 'Космос, Наука и ИИ',
     questionCount: 5,
     difficulty: 'medium',
-    isHost: true
+    isHost: true,
   }
 
   public currentPlayer: Player = {
@@ -38,15 +39,47 @@ export class MockGameServer {
     streak: 0,
     isCurrentPlayer: true,
     answered: false,
-    isHost: true
+    isHost: true,
   }
 
   public players: Player[] = [
     this.currentPlayer,
-    { id: 'player-nonwire', nickname: 'Nonwire', avatar: '⚡', score: 0, rank: 2, streak: 0, answered: false },
-    { id: 'player-eco1kd', nickname: 'eco1kd', avatar: '🚀', score: 0, rank: 3, streak: 0, answered: false },
-    { id: 'player-raikuchan', nickname: 'raikuchan', avatar: '🐱', score: 0, rank: 4, streak: 0, answered: false },
-    { id: 'player-neo', nickname: 'cyber_neo', avatar: '🤖', score: 0, rank: 5, streak: 0, answered: false }
+    {
+      id: 'player-nonwire',
+      nickname: 'Nonwire',
+      avatar: '⚡',
+      score: 0,
+      rank: 2,
+      streak: 0,
+      answered: false,
+    },
+    {
+      id: 'player-eco1kd',
+      nickname: 'eco1kd',
+      avatar: '🚀',
+      score: 0,
+      rank: 3,
+      streak: 0,
+      answered: false,
+    },
+    {
+      id: 'player-raikuchan',
+      nickname: 'raikuchan',
+      avatar: '🐱',
+      score: 0,
+      rank: 4,
+      streak: 0,
+      answered: false,
+    },
+    {
+      id: 'player-neo',
+      nickname: 'cyber_neo',
+      avatar: '🤖',
+      score: 0,
+      rank: 5,
+      streak: 0,
+      answered: false,
+    },
   ]
 
   public timeRemaining = 20
@@ -61,7 +94,8 @@ export class MockGameServer {
     correctAnswersCount: 0,
     averageResponseTimeSec: 0,
     highestStreak: 0,
-    hardestQuestionText: 'Какая планета Солнечной системы вращается вокруг своей оси лёжа на боку?'
+    hardestQuestionText:
+      'Какая планета Солнечной системы вращается вокруг своей оси лёжа на боку?',
   }
 
   private responseTimes: number[] = []
@@ -72,7 +106,7 @@ export class MockGameServer {
   }
 
   private emit(event: string, data: any) {
-    this.listeners.forEach(fn => fn(event, data))
+    this.listeners.forEach((fn) => fn(event, data))
   }
 
   public getCurrentQuestion(): QuestionWithAnswer {
@@ -82,7 +116,10 @@ export class MockGameServer {
   public openLobby() {
     this.clearTimers()
     this.resetPlayers()
-    this.emit('room:created', { code: this.roomInfo.code, roomId: this.roomInfo.roomId })
+    this.emit('room:created', {
+      code: this.roomInfo.code,
+      roomId: this.roomInfo.roomId,
+    })
     this.emit('room:updated', { players: this.players })
   }
 
@@ -93,13 +130,26 @@ export class MockGameServer {
       avatar,
       score: 0,
       streak: 0,
-      answered: false
+      answered: false,
     }
     this.players.push(newPlayer)
     this.emit('room:updated', { players: [...this.players] })
   }
 
+  public stop() {
+    this.clearTimers()
+  }
+
   public startGame() {
+    this.questions = Array.from(
+      { length: this.roomInfo.questionCount },
+      (_, index) => ({
+        ...MOCK_QUESTIONS[index % MOCK_QUESTIONS.length],
+        questionId: `demo-q-${index}`,
+        index: index + 1,
+        total: this.roomInfo.questionCount,
+      }),
+    )
     this.currentQuestionIdx = 0
     this.resetPlayers()
     this.responseTimes = []
@@ -110,7 +160,7 @@ export class MockGameServer {
   }
 
   private resetPlayers() {
-    this.players.forEach(p => {
+    this.players.forEach((p) => {
       p.score = 0
       p.streak = 0
       p.rank = 1
@@ -127,7 +177,7 @@ export class MockGameServer {
     this.timeRemaining = q.timeLimit
     this.questionStartTime = Date.now()
     this.selectedOption = null
-    this.players.forEach(p => (p.answered = false))
+    this.players.forEach((p) => (p.answered = false))
 
     const questionPayload: QuestionData = {
       questionId: q.questionId,
@@ -135,7 +185,7 @@ export class MockGameServer {
       options: q.options,
       timeLimit: q.timeLimit,
       index: q.index,
-      total: q.total
+      total: q.total,
     }
 
     this.emit('question:show', questionPayload)
@@ -159,6 +209,8 @@ export class MockGameServer {
   }
 
   private clearTimers() {
+    this.botTimers.forEach(clearTimeout)
+    this.botTimers = []
     if (this.timerInterval) {
       clearInterval(this.timerInterval)
       this.timerInterval = null
@@ -177,9 +229,11 @@ export class MockGameServer {
     const elapsedSeconds = (Date.now() - this.questionStartTime) / 1000
     this.responseTimes.push(elapsedSeconds)
 
-    this.emit('answer:accepted', { questionId: this.getCurrentQuestion().questionId })
+    this.emit('answer:accepted', {
+      questionId: this.getCurrentQuestion().questionId,
+    })
 
-    const allAnswered = this.players.every(p => p.answered)
+    const allAnswered = this.players.every((p) => p.answered)
     if (allAnswered && this.isAutoMode) {
       this.clearTimers()
       this.autoAdvanceTimer = window.setTimeout(() => {
@@ -189,15 +243,19 @@ export class MockGameServer {
   }
 
   private simulateBotsAnswering() {
-    this.players.filter(p => !p.isCurrentPlayer).forEach(bot => {
-      const delay = 2000 + Math.random() * 8000
-      window.setTimeout(() => {
-        if (this.timeRemaining > 0 && !bot.answered) {
-          bot.answered = true
-          this.emit('room:player_answered', { playerId: bot.id })
-        }
-      }, delay)
-    })
+    this.players
+      .filter((p) => !p.isCurrentPlayer)
+      .forEach((bot) => {
+        const delay = 2000 + Math.random() * 8000
+        this.botTimers.push(
+          window.setTimeout(() => {
+            if (this.timeRemaining > 0 && !bot.answered) {
+              bot.answered = true
+              this.emit('room:player_answered', { playerId: bot.id })
+            }
+          }, delay),
+        )
+      })
   }
 
   public revealCurrentQuestion() {
@@ -205,7 +263,7 @@ export class MockGameServer {
     const q = this.getCurrentQuestion()
     const results: PlayerResult[] = []
 
-    this.players.forEach(player => {
+    this.players.forEach((player) => {
       let isCorrect = false
       let points = 0
 
@@ -217,7 +275,8 @@ export class MockGameServer {
 
       if (isCorrect) {
         player.streak = (player.streak || 0) + 1
-        const streakMultiplier = player.streak >= 5 ? 1.5 : player.streak >= 3 ? 1.2 : 1.0
+        const streakMultiplier =
+          player.streak >= 5 ? 1.5 : player.streak >= 3 ? 1.2 : 1.0
         const ratio = Math.max(0.15, this.timeRemaining / q.timeLimit)
         points = Math.round(1000 * ratio * streakMultiplier)
         player.score += points
@@ -237,7 +296,7 @@ export class MockGameServer {
         playerId: player.id,
         correct: isCorrect,
         points,
-        streak: player.streak
+        streak: player.streak,
       })
     })
 
@@ -247,7 +306,7 @@ export class MockGameServer {
       questionId: q.questionId,
       correctIndex: q.correctIndex,
       results,
-      explanation: q.explanation
+      explanation: q.explanation,
     }
 
     this.emit('question:reveal', revealData)
@@ -263,7 +322,7 @@ export class MockGameServer {
     this.clearTimers()
     const sorted = [...this.players].sort((a, b) => b.score - a.score)
     const leaderboardPlayers: LeaderboardPlayer[] = sorted.map((p, idx) => {
-      const prev = p.rank || (idx + 1)
+      const prev = p.rank || idx + 1
       p.rank = idx + 1
       return {
         id: p.id,
@@ -272,12 +331,12 @@ export class MockGameServer {
         rank: idx + 1,
         avatar: p.avatar,
         streak: p.streak,
-        previousRank: prev
+        previousRank: prev,
       }
     })
 
     const leaderboardData: LeaderboardData = {
-      players: leaderboardPlayers
+      players: leaderboardPlayers,
     }
 
     this.emit('leaderboard:update', leaderboardData)
@@ -308,23 +367,31 @@ export class MockGameServer {
       score: p.score,
       rank: idx + 1,
       avatar: p.avatar,
-      streak: p.streak
+      streak: p.streak,
     }))
 
     const avgTime = this.responseTimes.length
-      ? Math.round((this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length) * 10) / 10
+      ? Math.round(
+          (this.responseTimes.reduce((a, b) => a + b, 0) /
+            this.responseTimes.length) *
+            10,
+        ) / 10
       : 0
     this.stats.averageResponseTimeSec = avgTime
 
     const finishedData: GameFinishedData = {
       leaderboard: leaderboardPlayers,
-      stats: this.stats
+      stats: this.stats,
     }
 
     this.emit('game:finished', finishedData)
   }
 
-  public devSetPhase(phase: 'lobby' | 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) {
+  public devSetPhase(
+    phase:
+      'lobby' | 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished',
+    opts?: { correct?: boolean },
+  ) {
     this.clearTimers()
     this.isAutoMode = false
 
@@ -335,10 +402,14 @@ export class MockGameServer {
     } else if (phase === 'waiting') {
       this.selectedOption = 1
       this.currentPlayer.answered = true
-      this.emit('answer:accepted', { questionId: this.getCurrentQuestion().questionId })
+      this.emit('answer:accepted', {
+        questionId: this.getCurrentQuestion().questionId,
+      })
     } else if (phase === 'reveal') {
       if (opts?.correct !== undefined) {
-        this.selectedOption = opts.correct ? this.getCurrentQuestion().correctIndex : (this.getCurrentQuestion().correctIndex + 1) % 4
+        this.selectedOption = opts.correct
+          ? this.getCurrentQuestion().correctIndex
+          : (this.getCurrentQuestion().correctIndex + 1) % 4
       } else {
         this.selectedOption = this.getCurrentQuestion().correctIndex
       }

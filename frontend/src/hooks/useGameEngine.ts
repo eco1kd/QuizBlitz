@@ -7,70 +7,67 @@ import type {
   QuestionRevealData,
   PlayerResult,
   Player,
-  RoomInfo
+  RoomInfo,
 } from '../types/game'
 import { mockGameServer } from '../services/mockSocket'
 import { liveSocketService } from '../services/liveSocket'
+import type { User } from '../services/account'
 
 export type ConnectionMode = 'live' | 'mock'
+const mode: ConnectionMode =
+  import.meta.env.VITE_GAME_MODE === 'live' ? 'live' : 'mock'
+const service = () => (mode === 'live' ? liveSocketService : mockGameServer)
+export type RoomOptions = Pick<
+  RoomInfo,
+  'topic' | 'questionCount' | 'difficulty'
+>
 
 export function useGameEngine() {
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('mock')
-  const modeRef = useRef<ConnectionMode>('mock')
-
   const [phase, setPhase] = useState<GamePhase>('lobby')
-  const [roomInfo, setRoomInfo] = useState<RoomInfo>(mockGameServer.roomInfo)
-  const [roomPlayers, setRoomPlayers] = useState<Player[]>([...mockGameServer.players])
-  const [currentPlayer, setCurrentPlayer] = useState<Player>(mockGameServer.currentPlayer)
+  const [hasRoom, setHasRoom] = useState(false)
+  const [connected, setConnected] = useState(mode === 'mock')
+  const [roomInfo, setRoomInfo] = useState<RoomInfo>({ ...service().roomInfo })
+  const [roomPlayers, setRoomPlayers] = useState<Player[]>([])
+  const [currentPlayer, setCurrentPlayer] = useState<Player>({
+    ...service().currentPlayer,
+  })
   const [question, setQuestion] = useState<QuestionData | null>(null)
-  const [timeRemaining, setTimeRemaining] = useState<number>(20)
+  const [timeRemaining, setTimeRemaining] = useState(20)
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [revealData, setRevealData] = useState<QuestionRevealData | null>(null)
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null)
-  const [finishedData, setFinishedData] = useState<GameFinishedData | null>(null)
+  const [finishedData, setFinishedData] = useState<GameFinishedData | null>(
+    null,
+  )
   const [myResult, setMyResult] = useState<PlayerResult | null>(null)
-  const [myScore, setMyScore] = useState<number>(0)
-  const [myStreak, setMyStreak] = useState<number>(0)
+  const [myScore, setMyScore] = useState(0)
+  const [myStreak, setMyStreak] = useState(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isAutoMode, setIsAutoMode] = useState<boolean>(true)
+  const pendingCancel = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    const handleEvent = (source: ConnectionMode) => (event: string, data: any) => {
-      if (event === 'connection:status') {
-        if (data.connected) {
-          modeRef.current = 'live'
-          setConnectionMode('live')
-          setRoomInfo({ ...liveSocketService.roomInfo })
-          setCurrentPlayer({ ...liveSocketService.currentPlayer })
-        } else if (modeRef.current === 'live') {
-          modeRef.current = 'mock'
-          setConnectionMode('mock')
-          setRoomInfo({ ...mockGameServer.roomInfo })
-          setRoomPlayers([...mockGameServer.players])
-          setCurrentPlayer({ ...mockGameServer.currentPlayer })
-        }
-        return
-      }
-
-      if (source !== modeRef.current) return
-
-      const activeEngine = source === 'live' ? liveSocketService : mockGameServer
-
+    const engine = service()
+    const unsubscribe = engine.subscribe((event, data) => {
       switch (event) {
+        case 'connection:status':
+          setConnected(data.connected)
+          break
         case 'room:created':
-          setRoomInfo({ ...activeEngine.roomInfo })
-          setCurrentPlayer({ ...activeEngine.currentPlayer })
+          setRoomInfo({ ...engine.roomInfo })
+          setCurrentPlayer({ ...engine.currentPlayer })
+          setHasRoom(true)
           setMyScore(0)
           setMyStreak(0)
           setPhase('lobby')
+          setFinishedData(null)
           break
-
         case 'room:updated':
           setRoomPlayers([...data.players])
-          setRoomInfo({ ...activeEngine.roomInfo })
-          setCurrentPlayer({ ...activeEngine.currentPlayer })
+          setRoomInfo({ ...engine.roomInfo })
+          setCurrentPlayer({ ...engine.currentPlayer })
+          if (data.players.some((p: Player) => p.isCurrentPlayer))
+            setHasRoom(true)
           break
-
         case 'question:show':
           setQuestion(data)
           setTimeRemaining(data.timeLimit)
@@ -79,181 +76,191 @@ export function useGameEngine() {
           setMyResult(null)
           setPhase('question')
           break
-
         case 'timer:tick':
           setTimeRemaining(data.remaining)
           break
-
         case 'answer:accepted':
           setPhase('waiting')
           break
-
         case 'question:reveal': {
-          const rev: QuestionRevealData = data
-          setRevealData(rev)
-          const mine = rev.results.find(r => r.playerId === activeEngine.currentPlayer.id)
+          setRevealData(data)
+          const mine = (data as QuestionRevealData).results.find(
+            (r) => r.playerId === engine.currentPlayer.id,
+          )
           if (mine) {
             setMyResult(mine)
-            setMyScore(activeEngine.currentPlayer.score)
+            setMyScore(engine.currentPlayer.score)
             setMyStreak(mine.streak || 0)
           }
           setPhase('reveal')
           break
         }
-
         case 'leaderboard:update':
           setLeaderboard(data)
-          setMyScore(activeEngine.currentPlayer.score)
-          setCurrentPlayer({ ...activeEngine.currentPlayer })
+          setMyScore(engine.currentPlayer.score)
+          setCurrentPlayer({ ...engine.currentPlayer })
           setPhase('leaderboard')
           break
-
         case 'game:finished':
           setFinishedData(data)
           setPhase('finished')
           break
-
         case 'error':
           setErrorMessage(data.message)
-          setTimeout(() => setErrorMessage(null), 4000)
-          break
-
-        default:
           break
       }
-    }
-
-    const unsubMock = mockGameServer.subscribe(handleEvent('mock'))
-    const unsubLive = liveSocketService.subscribe(handleEvent('live'))
-
-    // Автоматически пробуем подключиться к реальному бэкенду @eco1kd (localhost:3001)
-    liveSocketService.connect(true)
-
+    })
+    if (mode === 'live') liveSocketService.connect(false)
     return () => {
-      unsubMock()
-      unsubLive()
+      pendingCancel.current?.()
+      unsubscribe()
+      if (mode === 'live') liveSocketService.disconnect()
+      else mockGameServer.stop()
     }
   }, [])
 
-  const switchConnectionMode = useCallback((target: ConnectionMode) => {
-    modeRef.current = target
-    setConnectionMode(target)
-    if (target === 'live') {
-      liveSocketService.connect(true)
-      setRoomInfo({ ...liveSocketService.roomInfo })
-      setRoomPlayers([...liveSocketService.players])
-      setCurrentPlayer({ ...liveSocketService.currentPlayer })
-    } else {
-      liveSocketService.disconnect()
-      mockGameServer.openLobby()
-      setRoomInfo({ ...mockGameServer.roomInfo })
-      setRoomPlayers([...mockGameServer.players])
-      setCurrentPlayer({ ...mockGameServer.currentPlayer })
-      setPhase('lobby')
-    }
+  const setIdentity = useCallback((user: User) => {
+    const engine = service()
+    engine.currentPlayer.nickname = user.nickname
+    engine.currentPlayer.avatar = user.avatar
+    if (mode === 'mock') engine.currentPlayer.id = user.id
+    else liveSocketService.refreshAuthentication()
+    setCurrentPlayer({ ...engine.currentPlayer })
   }, [])
 
-  const createRoom = useCallback((opts: { topic: string; questionCount: number; difficulty: 'easy' | 'medium' | 'hard' }) => {
-    if (modeRef.current === 'live') {
-      liveSocketService.createRoom(opts)
-    } else {
-      mockGameServer.roomInfo.topic = opts.topic
-      mockGameServer.roomInfo.questionCount = opts.questionCount
-      mockGameServer.roomInfo.difficulty = opts.difficulty
-      mockGameServer.openLobby()
-      setRoomInfo({ ...mockGameServer.roomInfo })
-    }
+  const roomRequest = useCallback(
+    (send: () => void, creating: boolean) =>
+      new Promise<void>((resolve, reject) => {
+        setErrorMessage(null)
+        pendingCancel.current?.()
+        const timeout = setTimeout(
+          () => finish(new Error('Сервер не ответил. Попробуй ещё раз.')),
+          15000,
+        )
+        let sent = false
+        const sendOnce = () => {
+          if (sent) return
+          sent = true
+          send()
+        }
+        const unsubscribe = service().subscribe((event, data) => {
+          if (event === 'connection:status' && data.connected) sendOnce()
+          if (event === 'error') finish(new Error(data.message))
+          if (creating && event === 'room:created') finish()
+          if (
+            !creating &&
+            event === 'room:updated' &&
+            data.players.some((p: Player) => p.isCurrentPlayer)
+          )
+            finish()
+        })
+        const finish = (error?: Error) => {
+          clearTimeout(timeout)
+          unsubscribe()
+          pendingCancel.current = null
+          if (error) reject(error)
+          else resolve()
+        }
+        pendingCancel.current = () => finish(new Error('Подключение отменено.'))
+        if (mode === 'mock' || liveSocketService.isConnected) sendOnce()
+        else liveSocketService.connect(false)
+      }),
+    [],
+  )
+
+  const createRoom = useCallback(
+    (opts: RoomOptions) =>
+      roomRequest(() => {
+        if (mode === 'live') liveSocketService.createRoom(opts)
+        else {
+          mockGameServer.roomInfo = {
+            ...mockGameServer.roomInfo,
+            ...opts,
+            code: String(100000 + Math.floor(Math.random() * 900000)),
+            roomId: crypto.randomUUID(),
+            isHost: true,
+          }
+          mockGameServer.currentPlayer.isHost = true
+          mockGameServer.players = [mockGameServer.currentPlayer]
+          mockGameServer.openLobby()
+        }
+      }, true),
+    [roomRequest],
+  )
+
+  const joinRoom = useCallback(
+    (opts: { code: string; nickname: string; avatar?: string }) =>
+      roomRequest(() => {
+        if (mode === 'live') liveSocketService.joinRoom(opts)
+        else if (
+          opts.code !== '849215' &&
+          opts.code !== mockGameServer.roomInfo.code
+        )
+          mockGameServer.devTriggerError(
+            'Комната не найдена. В деморежиме используй код 849215.',
+          )
+        else {
+          Object.assign(mockGameServer.currentPlayer, {
+            nickname: opts.nickname,
+            avatar: opts.avatar || '⚡',
+            isHost: false,
+          })
+          Object.assign(mockGameServer.roomInfo, {
+            code: opts.code,
+            isHost: false,
+            topic: 'Космос, Наука и ИИ',
+          })
+          mockGameServer.players = [
+            {
+              id: 'demo-host',
+              nickname: 'Ведущий',
+              avatar: '🪐',
+              score: 0,
+              isHost: true,
+            },
+            mockGameServer.currentPlayer,
+          ]
+          mockGameServer.openLobby()
+        }
+      }, false),
+    [roomRequest],
+  )
+
+  const leaveRoom = useCallback(() => {
+    pendingCancel.current?.()
+    if (mode === 'live') {
+      liveSocketService.leaveRoom()
+      liveSocketService.connect(false)
+    } else mockGameServer.stop()
+    setHasRoom(false)
+    setPhase('lobby')
+    setQuestion(null)
+    setFinishedData(null)
+    setRoomPlayers([])
+    setErrorMessage(null)
   }, [])
-
-  const joinRoom = useCallback((opts: { code: string; nickname: string; avatar?: string }) => {
-    if (modeRef.current === 'live') {
-      liveSocketService.joinRoom(opts)
-    } else {
-      mockGameServer.currentPlayer.nickname = opts.nickname
-      if (opts.avatar) mockGameServer.currentPlayer.avatar = opts.avatar
-      mockGameServer.roomInfo.code = opts.code
-      mockGameServer.openLobby()
-    }
-  }, [])
-
-  const startLobbyGame = useCallback(() => {
-    if (modeRef.current === 'live') {
-      liveSocketService.startGame()
-    } else {
-      mockGameServer.startGame()
-    }
-  }, [])
-
-  const submitAnswer = useCallback((optionIndex: number) => {
-    setSelectedOption(optionIndex)
-    if (modeRef.current === 'live') {
-      liveSocketService.submitAnswer(optionIndex)
-    } else {
-      mockGameServer.submitAnswer(optionIndex)
-    }
-  }, [])
-
-  const nextStep = useCallback(() => {
-    if (modeRef.current === 'live') {
-      liveSocketService.nextStep()
-    } else {
-      if (phase === 'reveal') {
-        mockGameServer.showLeaderboard()
-      } else {
-        mockGameServer.nextStep()
-      }
-    }
-  }, [phase])
-
-  const restartGame = useCallback(() => {
-    if (modeRef.current === 'live') {
-      liveSocketService.isAutoMode = true
-      setIsAutoMode(true)
-      liveSocketService.createRoom({
-        topic: liveSocketService.roomInfo.topic,
-        questionCount: liveSocketService.roomInfo.questionCount,
-        difficulty: liveSocketService.roomInfo.difficulty
-      })
-    } else {
-      mockGameServer.isAutoMode = true
-      setIsAutoMode(true)
-      mockGameServer.startGame()
-    }
-  }, [])
-
-  const toggleAutoMode = useCallback((active: boolean) => {
-    mockGameServer.isAutoMode = active
-    liveSocketService.isAutoMode = active
-    setIsAutoMode(active)
-  }, [])
-
-  const setDevPhase = useCallback((targetPhase: 'lobby' | 'question' | 'waiting' | 'reveal' | 'leaderboard' | 'finished', opts?: { correct?: boolean }) => {
-    modeRef.current = 'mock'
-    setConnectionMode('mock')
-    mockGameServer.devSetPhase(targetPhase, opts)
-    if (opts?.correct !== undefined && targetPhase === 'reveal') {
-      setSelectedOption(opts.correct ? mockGameServer.getCurrentQuestion().correctIndex : (mockGameServer.getCurrentQuestion().correctIndex + 1) % 4)
-    }
-  }, [])
-
-  const triggerDevError = useCallback((msg: string) => {
-    mockGameServer.devTriggerError(msg)
-  }, [])
-
-  const addBotPlayer = useCallback((nickname: string, avatar: string) => {
-    if (modeRef.current === 'live') {
-      liveSocketService.spawnLiveBot(nickname, avatar)
-    } else {
-      mockGameServer.addMockPlayer(nickname, avatar)
-    }
-  }, [])
-
+  const startLobbyGame = () => {
+    setErrorMessage(null)
+    if (roomInfo.isHost && connected) service().startGame()
+  }
+  const submitAnswer = (index: number) => {
+    if (!connected) return
+    setSelectedOption(index)
+    service().submitAnswer(index)
+  }
+  const nextStep = () => {
+    if (!connected || !roomInfo.isHost) return
+    if (mode === 'mock' && phase === 'reveal') mockGameServer.showLeaderboard()
+    else service().nextStep()
+  }
   return {
-    connectionMode,
-    switchConnectionMode,
+    connectionMode: mode,
+    connected,
+    hasRoom,
     phase,
     roomInfo,
     roomPlayers,
+    currentPlayer,
     question,
     timeRemaining,
     selectedOption,
@@ -264,17 +271,22 @@ export function useGameEngine() {
     myScore,
     myStreak,
     errorMessage,
-    isAutoMode,
     createRoom,
     joinRoom,
     startLobbyGame,
     submitAnswer,
     nextStep,
-    restartGame,
-    toggleAutoMode,
-    setDevPhase,
-    triggerDevError,
-    addBotPlayer,
-    currentPlayer
+    leaveRoom,
+    setIdentity,
+    clearError: () => setErrorMessage(null),
+    reconnect: () => liveSocketService.connect(false),
+    addBotPlayer: () => {
+      if (mode === 'mock')
+        mockGameServer.addMockPlayer(
+          `Игрок ${mockGameServer.players.length + 1}`,
+          ['🦊', '🐸', '👾', '🌻'][mockGameServer.players.length % 4],
+        )
+    },
   }
 }
+export type GameEngine = ReturnType<typeof useGameEngine>
