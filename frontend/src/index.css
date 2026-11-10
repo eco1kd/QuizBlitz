@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-surface: #0f111a;
+    --bg-surface-dim: #181a24;
+    --bg-surface-container: #202330;
+    --bg-surface-container-high: #292d3e;
+    --primary: #9d86ff;
+    --primary-container: #3d3570;
+    --on-primary: #1b1248;
+    --secondary: #ff7597;
+    --tertiary: #52e1c9;
+  }
+
+  body {
+    background-color: var(--bg-surface);
+    color: #f1f3f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Plus Jakarta Sans", system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Material 3 Expressive squircle & pulse animations */
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.9; }
+}
+
+@keyframes spring-bounce {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 1.8s ease-in-out infinite;
+}
+
+.animate-spring-bounce {
+  animation: spring-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
