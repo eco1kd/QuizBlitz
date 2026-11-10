@@ -1,6 +1,8 @@
+
 # Environment variables
 .env
 .env.*
+*.env
 
 # Python
 __pycache__/
@@ -11,9 +13,23 @@ __pycache__/
 .venv/
 venv/
 
-# IDE
-.idea/
-.vscode/
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
 
 # Database
 *.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE & System
+.idea/
+.vscode/
+.DS_Store
+*.swp
