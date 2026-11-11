@@ -124,7 +124,7 @@ test('completed demo round flows into existing game screens and history', async 
   await expect(page.locator('.history-row')).toContainText('Космос')
 })
 
-for (const width of [320, 390, 768, 1440]) {
+for (const width of [320, 390, 768, 1024, 1440, 1920]) {
   test(`responsive layout at ${width}px has no horizontal overflow`, async ({
     page,
   }) => {
@@ -143,19 +143,33 @@ for (const width of [320, 390, 768, 1440]) {
   })
 }
 
-test('real server: two clients, host role survives reload, disconnect never switches to demo', async ({
+test('real server: two clients, reconnect, full game and server results', async ({
   browser,
 }) => {
-  test.skip(
-    !process.env.LIVE_E2E_URL,
-    'Set LIVE_E2E_URL with the Node backend and live-mode frontend running.',
-  )
-  const url = process.env.LIVE_E2E_URL!
+  const url = 'http://127.0.0.1:5181'
   const hostContext = await browser.newContext()
   const guestContext = await browser.newContext()
   try {
     const host = await hostContext.newPage()
     const guest = await guestContext.newPage()
+    const received: Record<string, any[]> = {}
+    host.on('websocket', (socket) => {
+      if (!socket.url().includes('/socket.io/')) return
+      socket.on('framereceived', ({ payload }) => {
+        if (typeof payload !== 'string' || !payload.startsWith('42')) return
+        const [event, data] = JSON.parse(payload.slice(2))
+        if (
+          [
+            'question:show',
+            'question:reveal',
+            'leaderboard:update',
+            'game:finished',
+          ].includes(event)
+        ) {
+          ;(received[event] ||= []).push(data)
+        }
+      })
+    })
     await host.addInitScript(() => {
       const NativeWebSocket = window.WebSocket
       const sockets: WebSocket[] = []
@@ -215,6 +229,73 @@ test('real server: two clients, host role survives reload, disconnect never swit
     await expect(
       guest.getByText('Вопрос 1 из 3', { exact: false }),
     ).toBeVisible()
+    for (let index = 1; index <= 3; index++) {
+      await expect(host.getByText(`Вопрос ${index} из 3`)).toBeVisible()
+      await expect(guest.getByText(`Вопрос ${index} из 3`)).toBeVisible()
+      const options = host.locator('.game-stage .grid button')
+      await expect(options).toHaveCount(4)
+      const option = (await options.first().innerText()).trim()
+      await expect(guest.locator('.game-stage h2')).toHaveText(
+        (await host.locator('.game-stage h2').innerText()).trim(),
+      )
+      await host.getByRole('button', { name: option, exact: true }).click()
+      await expect(
+        host.getByRole('heading', { name: 'Ответ принят!' }),
+      ).toBeVisible()
+      await guest.getByRole('button', { name: option, exact: true }).click()
+      await expect(
+        host.getByRole('button', { name: 'К таблице лидеров' }),
+      ).toBeVisible()
+      await expect(
+        guest.getByRole('heading', { name: /Верный ответ|неверно/ }),
+      ).toBeVisible()
+      expect(received['question:reveal']).toHaveLength(index)
+      await host.getByRole('button', { name: 'К таблице лидеров' }).click()
+      await expect(
+        host.getByRole('heading', { name: 'Битва за первенство' }),
+      ).toBeVisible()
+      await expect(
+        guest.getByRole('heading', { name: 'Битва за первенство' }),
+      ).toBeVisible()
+      expect(received['leaderboard:update'].at(-1).players).toHaveLength(2)
+      await host.getByRole('button', { name: 'Следующий вопрос' }).click()
+    }
+    for (const client of [host, guest]) {
+      await expect(
+        client.getByRole('heading', { name: 'Подиум победителей' }),
+      ).toBeVisible()
+      await expect(
+        client.getByText('Твой результат', { exact: true }),
+      ).toBeVisible()
+    }
+    expect(received['question:show']).toHaveLength(3)
+    const result = received['game:finished'].at(-1)
+    expect(result.leaderboard).toHaveLength(2)
+    expect(result.stats.totalQuestions).toBe(3)
+    for (const player of result.leaderboard) {
+      expect(player.score).toBeGreaterThanOrEqual(0)
+      await expect(
+        host
+          .getByText(`${player.score.toLocaleString('en-US')} pts`, {
+            exact: true,
+          })
+          .first(),
+      ).toBeVisible()
+      await expect(
+        guest
+          .getByText(`${player.score.toLocaleString('en-US')} pts`, {
+            exact: true,
+          })
+          .first(),
+      ).toBeVisible()
+    }
+    // Live games must not be passed off as locally persisted demo history.
+    await host.getByRole('button', { name: 'История', exact: true }).click()
+    await host
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Выйти', exact: true })
+      .click()
+    await expect(host.locator('.history-row')).toHaveCount(0)
   } finally {
     await hostContext.close()
     await guestContext.close()

@@ -1,32 +1,26 @@
-# React + TypeScript + Vite
+# QuizBlitz — frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Vite. Экраны входа и лобби @Nonwire подключены к игровым экранам @karapuz1226 через общий `useGameEngine`.
 
-Currently, two official plugins are available:
+- [Запуск всего проекта и текущий статус](../README.md)
+- [Контракт REST/Socket.IO и устройство части Nonwire](INTEGRATION.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Из корня репозитория сначала установить зависимости обоих пакетов:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm --prefix backend ci
+npm --prefix frontend ci
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Из `frontend`:
+
+```sh
+npm run dev       # локальное демо, если .env.local не меняет режим
+npm run lint
+npm run build
+npm run test:e2e  # сам запускает игровой сервер и тестовые фронтенды
+```
+
+На macOS E2E использует Google Chrome; на Linux/Windows выполнить `npx playwright install chromium`. Тестам нужны свободные порты 3101 и 5180–5182.
+
+Настройки находятся в `.env.example`. Для настоящих общих комнат использовать `VITE_GAME_MODE=live`; REST-авторизация остаётся отдельной незавершённой частью бэкенда.
