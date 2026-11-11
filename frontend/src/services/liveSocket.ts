@@ -1,4 +1,5 @@
 import { io, type Socket } from 'socket.io-client'
+import { getSession } from './account'
 import type {
   Player,
   QuestionData,
@@ -6,14 +7,15 @@ import type {
   LeaderboardData,
   GameFinishedData,
   GameError,
-  RoomInfo
+  RoomInfo,
 } from '../types/game'
 import type { GameEventListener } from './mockSocket'
 
-const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3001'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 
 export class LiveSocketService {
   private socket: Socket | null = null
+  private connectionToken: string | undefined
   private botSockets: Socket[] = []
   private listeners: Set<GameEventListener> = new Set()
   private autoAdvanceTimer: number | null = null
@@ -27,7 +29,7 @@ export class LiveSocketService {
     topic: 'Космос, Наука и ИИ',
     questionCount: 5,
     difficulty: 'medium',
-    isHost: true
+    isHost: true,
   }
 
   public currentPlayer: Player = {
@@ -39,7 +41,7 @@ export class LiveSocketService {
     streak: 0,
     isCurrentPlayer: true,
     answered: false,
-    isHost: true
+    isHost: true,
   }
 
   public players: Player[] = []
@@ -51,20 +53,22 @@ export class LiveSocketService {
   }
 
   private emitLocal(event: string, data: any) {
-    this.listeners.forEach(fn => fn(event, data))
+    this.listeners.forEach((fn) => fn(event, data))
   }
 
-  public connect(autoCreateRoom = true): void {
+  public connect(_autoCreateRoom = false): void {
     if (this.socket?.connected) return
 
     if (this.socket) {
       this.socket.disconnect()
     }
 
+    this.connectionToken = getSession()?.token
     const socket = io(BACKEND_URL, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 3,
-      timeout: 3000
+      timeout: 3000,
+      auth: (callback) => callback({ token: getSession()?.token }),
     })
 
     this.socket = socket
@@ -73,31 +77,36 @@ export class LiveSocketService {
       this.isConnected = true
       this.emitLocal('connection:status', { connected: true, mode: 'live' })
 
-      if (autoCreateRoom) {
-        if (!this.roomInfo.isHost && this.roomInfo.code && this.roomInfo.code !== '------') {
-          this.joinRoom({
-            code: this.roomInfo.code,
-            nickname: this.currentPlayer.nickname,
-            avatar: this.currentPlayer.avatar
-          })
-        } else {
-          this.createRoom({
-            topic: this.roomInfo.topic || 'Космос, Наука и ИИ',
-            questionCount: this.roomInfo.questionCount || 5,
-            difficulty: this.roomInfo.difficulty || 'medium'
+      // A reconnect rejoins the same room with the server-issued player ID.
+      // Never silently creates a replacement room or switches to mock data.
+      try {
+        const saved = JSON.parse(
+          sessionStorage.getItem('quizblitz.liveRoom') || 'null',
+        )
+        if (saved?.playerId && saved?.code) {
+          this.roomInfo = saved.roomInfo
+          this.currentPlayer.id = saved.playerId
+          this.currentPlayer.nickname = saved.nickname
+          socket.emit('room:join', {
+            code: saved.code,
+            nickname: saved.nickname,
+            avatar: saved.avatar,
+            playerId: saved.playerId,
           })
         }
+      } catch {
+        /* No recoverable session. */
       }
     })
 
     socket.on('disconnect', () => {
       this.isConnected = false
-      this.emitLocal('connection:status', { connected: false, mode: 'mock' })
+      this.emitLocal('connection:status', { connected: false, mode: 'live' })
     })
 
     socket.on('connect_error', () => {
       this.isConnected = false
-      this.emitLocal('connection:status', { connected: false, mode: 'mock' })
+      this.emitLocal('connection:status', { connected: false, mode: 'live' })
     })
 
     socket.on('room:created', (data: { code: string; roomId: string }) => {
@@ -105,26 +114,56 @@ export class LiveSocketService {
         ...this.roomInfo,
         code: data.code,
         roomId: data.roomId,
-        isHost: true
+        isHost: true,
       }
       this.currentPlayer.isHost = true
+      try {
+        sessionStorage.setItem(
+          'quizblitz.liveRoom',
+          JSON.stringify({
+            code: data.code,
+            roomInfo: this.roomInfo,
+            playerId: this.currentPlayer.id,
+            nickname: this.currentPlayer.nickname,
+            avatar: this.currentPlayer.avatar,
+          }),
+        )
+      } catch {
+        /* Session storage unavailable. */
+      }
       this.emitLocal('room:created', data)
     })
 
     socket.on('room:updated', (data: { players: Player[] }) => {
       const mySocketId = socket.id
-      const updatedPlayers = data.players.map(p => {
-        const isMe = (mySocketId && p.socketId === mySocketId) || p.id === this.currentPlayer.id
+      const updatedPlayers = data.players.map((p) => {
+        const isMe =
+          (mySocketId && p.socketId === mySocketId) ||
+          p.id === this.currentPlayer.id
         if (isMe) {
           this.currentPlayer = {
             ...p,
-            isCurrentPlayer: true
+            isCurrentPlayer: true,
           }
           this.roomInfo.isHost = Boolean(p.isHost)
+          try {
+            sessionStorage.setItem(
+              'quizblitz.liveRoom',
+              JSON.stringify({
+                code: this.roomInfo.code,
+                roomInfo: this.roomInfo,
+                playerId: p.id,
+                nickname: p.nickname,
+                avatar: p.avatar,
+              }),
+            )
+          } catch {
+            /* Session storage unavailable. */
+          }
         }
         return {
           ...p,
-          isCurrentPlayer: Boolean(isMe)
+          isCurrentPlayer: Boolean(isMe),
         }
       })
 
@@ -152,7 +191,9 @@ export class LiveSocketService {
 
     socket.on('question:reveal', (data: QuestionRevealData) => {
       this.clearAutoAdvance()
-      const mine = data.results.find(r => r.playerId === this.currentPlayer.id)
+      const mine = data.results.find(
+        (r) => r.playerId === this.currentPlayer.id,
+      )
       if (mine) {
         this.currentPlayer.score += mine.points
         this.currentPlayer.streak = mine.streak ?? 0
@@ -168,7 +209,7 @@ export class LiveSocketService {
 
     socket.on('leaderboard:update', (data: LeaderboardData) => {
       this.clearAutoAdvance()
-      const mine = data.players.find(p => p.id === this.currentPlayer.id)
+      const mine = data.players.find((p) => p.id === this.currentPlayer.id)
       if (mine) {
         this.currentPlayer.score = mine.score
         this.currentPlayer.rank = mine.rank
@@ -190,13 +231,8 @@ export class LiveSocketService {
 
     socket.on('error', (err: GameError) => {
       console.warn('[LiveSocket] Error from server:', err)
-      if (err.code === 'NOT_IN_ROOM' && this.roomInfo.isHost) {
-        this.createRoom({
-          topic: this.roomInfo.topic || 'Космос, Наука и ИИ',
-          questionCount: this.roomInfo.questionCount || 5,
-          difficulty: this.roomInfo.difficulty || 'medium'
-        })
-      }
+      if (err.code === 'ROOM_NOT_FOUND')
+        sessionStorage.removeItem('quizblitz.liveRoom')
       this.emitLocal('error', err)
     })
   }
@@ -224,7 +260,7 @@ export class LiveSocketService {
     this.socket?.emit('room:create', {
       topic: this.roomInfo.topic,
       questionCount: this.roomInfo.questionCount,
-      difficulty: this.roomInfo.difficulty
+      difficulty: this.roomInfo.difficulty,
     })
   }
 
@@ -233,6 +269,7 @@ export class LiveSocketService {
     const cleanCode = opts.code.replace(/\D/g, '').trim()
     this.roomInfo.code = cleanCode
     this.roomInfo.isHost = false
+    this.roomInfo.topic = 'Игра с друзьями'
     this.currentPlayer.nickname = opts.nickname.trim() || 'karapuz1226'
     this.currentPlayer.avatar = opts.avatar || '👾'
     this.currentPlayer.score = 0
@@ -241,7 +278,7 @@ export class LiveSocketService {
     this.socket?.emit('room:join', {
       code: cleanCode,
       nickname: this.currentPlayer.nickname,
-      avatar: this.currentPlayer.avatar
+      avatar: this.currentPlayer.avatar,
     })
   }
 
@@ -253,7 +290,7 @@ export class LiveSocketService {
     if (!this.currentQuestion) return
     this.socket?.emit('answer:submit', {
       questionId: this.currentQuestion.questionId,
-      optionIndex
+      optionIndex,
     })
   }
 
@@ -272,7 +309,7 @@ export class LiveSocketService {
     const botIndex = this.botSockets.length
     const botSocket = io(BACKEND_URL, {
       transports: ['websocket'],
-      forceNew: true
+      forceNew: true,
     })
 
     let currentQId: string | null = null
@@ -282,7 +319,7 @@ export class LiveSocketService {
       botSocket.emit('room:join', {
         code: this.roomInfo.code,
         nickname,
-        avatar
+        avatar,
       })
     })
 
@@ -300,7 +337,7 @@ export class LiveSocketService {
             const randomOpt = Math.floor(Math.random() * 4)
             botSocket.emit('answer:submit', {
               questionId: q.questionId,
-              optionIndex: randomOpt
+              optionIndex: randomOpt,
             })
           }
         }, delay)
@@ -312,7 +349,7 @@ export class LiveSocketService {
             const randomOpt = Math.floor(Math.random() * 4)
             botSocket.emit('answer:submit', {
               questionId: q.questionId,
-              optionIndex: randomOpt
+              optionIndex: randomOpt,
             })
           }
         }, 15000)
@@ -321,7 +358,11 @@ export class LiveSocketService {
 
     // Как только хост ответил — последний бот сразу отправляет свой ответ через 450мс
     botSocket.on('room:player_answered', (data: { playerId: string }) => {
-      if (data.playerId === this.currentPlayer.id && !answeredCurrent && currentQId) {
+      if (
+        data.playerId === this.currentPlayer.id &&
+        !answeredCurrent &&
+        currentQId
+      ) {
         const qId = currentQId
         setTimeout(() => {
           if (!answeredCurrent && currentQId === qId) {
@@ -329,7 +370,7 @@ export class LiveSocketService {
             const randomOpt = Math.floor(Math.random() * 4)
             botSocket.emit('answer:submit', {
               questionId: qId,
-              optionIndex: randomOpt
+              optionIndex: randomOpt,
             })
           }
         }, 450)
@@ -340,8 +381,24 @@ export class LiveSocketService {
   }
 
   public cleanupBots() {
-    this.botSockets.forEach(s => s.disconnect())
+    this.botSockets.forEach((s) => s.disconnect())
     this.botSockets = []
+  }
+
+  public refreshAuthentication() {
+    if (this.connectionToken !== getSession()?.token) {
+      this.disconnect()
+      this.connect(false)
+    }
+  }
+
+  public leaveRoom() {
+    sessionStorage.removeItem('quizblitz.liveRoom')
+    this.disconnect()
+    this.roomInfo.code = '------'
+    this.roomInfo.roomId = ''
+    this.players = []
+    this.currentQuestion = null
   }
 
   public disconnect() {

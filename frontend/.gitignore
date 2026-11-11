@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local runtime configuration and browser test artifacts
+.env
+playwright-report/
+test-results/
+
+!.env.example
