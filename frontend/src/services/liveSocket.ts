@@ -16,7 +16,6 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 export class LiveSocketService {
   private socket: Socket | null = null
   private connectionToken: string | undefined
-  private botSockets: Socket[] = []
   private listeners: Set<GameEventListener> = new Set()
   private autoAdvanceTimer: number | null = null
 
@@ -34,8 +33,8 @@ export class LiveSocketService {
 
   public currentPlayer: Player = {
     id: 'player-local',
-    nickname: 'karapuz1226',
-    avatar: '👾',
+    nickname: getSession()?.user.nickname || 'Игрок',
+    avatar: getSession()?.user.avatar || '👾',
     score: 0,
     rank: 1,
     streak: 0,
@@ -249,7 +248,6 @@ export class LiveSocketService {
     questionCount: number
     difficulty: 'easy' | 'medium' | 'hard'
   }) {
-    this.cleanupBots()
     this.roomInfo.topic = opts.topic || 'Космос, Наука и ИИ'
     this.roomInfo.questionCount = opts.questionCount || 5
     this.roomInfo.difficulty = opts.difficulty || 'medium'
@@ -265,13 +263,14 @@ export class LiveSocketService {
   }
 
   public joinRoom(opts: { code: string; nickname: string; avatar?: string }) {
-    this.cleanupBots()
     const cleanCode = opts.code.replace(/\D/g, '').trim()
     this.roomInfo.code = cleanCode
     this.roomInfo.isHost = false
     this.roomInfo.topic = 'Игра с друзьями'
-    this.currentPlayer.nickname = opts.nickname.trim() || 'karapuz1226'
-    this.currentPlayer.avatar = opts.avatar || '👾'
+    this.currentPlayer.nickname =
+      opts.nickname.trim() || getSession()?.user.nickname || 'Игрок'
+    this.currentPlayer.avatar =
+      opts.avatar || getSession()?.user.avatar || '👾'
     this.currentPlayer.score = 0
     this.currentPlayer.streak = 0
 
@@ -299,92 +298,6 @@ export class LiveSocketService {
     this.socket?.emit('game:next', {})
   }
 
-  /**
-   * Создаёт реального Socket.IO бота, который подключается к бэкенду @eco1kd
-   * по коду комнаты и отвечает на вопросы в реальном времени!
-   */
-  public spawnLiveBot(nickname: string, avatar: string) {
-    if (!this.roomInfo.code || this.roomInfo.code === '------') return
-
-    const botIndex = this.botSockets.length
-    const botSocket = io(BACKEND_URL, {
-      transports: ['websocket'],
-      forceNew: true,
-    })
-
-    let currentQId: string | null = null
-    let answeredCurrent = false
-
-    botSocket.on('connect', () => {
-      botSocket.emit('room:join', {
-        code: this.roomInfo.code,
-        nickname,
-        avatar,
-      })
-    })
-
-    botSocket.on('question:show', (q: QuestionData) => {
-      currentQId = q.questionId
-      answeredCurrent = false
-
-      // Первый бот ждёт ответа хоста (чтобы сервер не закрыл вопрос раньше хоста),
-      // остальные боты отвечают случайно через 2-6 секунд
-      if (botIndex > 0) {
-        const delay = 1800 + Math.random() * 4500
-        setTimeout(() => {
-          if (!answeredCurrent && currentQId === q.questionId) {
-            answeredCurrent = true
-            const randomOpt = Math.floor(Math.random() * 4)
-            botSocket.emit('answer:submit', {
-              questionId: q.questionId,
-              optionIndex: randomOpt,
-            })
-          }
-        }, delay)
-      } else {
-        // Страховочный таймер на случай, если хост не отвечает 15 секунд
-        setTimeout(() => {
-          if (!answeredCurrent && currentQId === q.questionId) {
-            answeredCurrent = true
-            const randomOpt = Math.floor(Math.random() * 4)
-            botSocket.emit('answer:submit', {
-              questionId: q.questionId,
-              optionIndex: randomOpt,
-            })
-          }
-        }, 15000)
-      }
-    })
-
-    // Как только хост ответил — последний бот сразу отправляет свой ответ через 450мс
-    botSocket.on('room:player_answered', (data: { playerId: string }) => {
-      if (
-        data.playerId === this.currentPlayer.id &&
-        !answeredCurrent &&
-        currentQId
-      ) {
-        const qId = currentQId
-        setTimeout(() => {
-          if (!answeredCurrent && currentQId === qId) {
-            answeredCurrent = true
-            const randomOpt = Math.floor(Math.random() * 4)
-            botSocket.emit('answer:submit', {
-              questionId: qId,
-              optionIndex: randomOpt,
-            })
-          }
-        }, 450)
-      }
-    })
-
-    this.botSockets.push(botSocket)
-  }
-
-  public cleanupBots() {
-    this.botSockets.forEach((s) => s.disconnect())
-    this.botSockets = []
-  }
-
   public refreshAuthentication() {
     if (this.connectionToken !== getSession()?.token) {
       this.disconnect()
@@ -403,7 +316,6 @@ export class LiveSocketService {
 
   public disconnect() {
     this.clearAutoAdvance()
-    this.cleanupBots()
     this.socket?.disconnect()
     this.socket = null
     this.isConnected = false

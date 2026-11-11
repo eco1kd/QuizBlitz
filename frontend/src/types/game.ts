@@ -58,6 +58,7 @@ export interface LeaderboardData {
 export interface GameStats {
   totalQuestions: number
   correctAnswersCount: number
+  playerCorrectCounts?: Record<string, number>
   averageResponseTimeSec: number
   highestStreak: number
   hardestQuestionText?: string

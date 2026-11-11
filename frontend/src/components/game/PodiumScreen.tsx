@@ -24,6 +24,17 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
 
   const myPlayer = leaderboard.find(p => p.id === currentPlayerId)
 
+  // Персональное количество правильных ответов (или нормализованное по числу игроков, строго <= totalQuestions)
+  const myCorrectCount =
+    stats.playerCorrectCounts?.[currentPlayerId] ??
+    (stats.correctAnswersCount <= stats.totalQuestions
+      ? stats.correctAnswersCount
+      : Math.round(stats.correctAnswersCount / Math.max(1, leaderboard.length)))
+
+  const accuracyPercent = stats.totalQuestions
+    ? Math.min(100, Math.round((myCorrectCount / stats.totalQuestions) * 100))
+    : 0
+
   // Запуск праздничного конфетти салюта и фанфар при входе на подиум
   useEffect(() => {
     sounds.playFanfare()
@@ -56,7 +67,11 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
   }, [])
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-4 flex flex-col justify-between flex-1 select-none overflow-y-auto">
+    <section
+      role="region"
+      aria-label="Финал игры и подиум победителей"
+      className="w-full max-w-3xl mx-auto px-4 py-4 flex flex-col justify-between flex-1 select-none overflow-y-auto"
+    >
       {/* Заголовок победы */}
       <div className="text-center mb-4 sm:mb-6">
         <motion.div
@@ -65,7 +80,7 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
           transition={{ type: 'spring', stiffness: 350, damping: 20 }}
           className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-xs font-bold uppercase tracking-wider mb-2"
         >
-          <Trophy className="w-4 h-4 text-yellow-400" />
+          <Trophy className="w-4 h-4 text-yellow-400" aria-hidden="true" />
           Финал игры
         </motion.div>
         <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
@@ -74,16 +89,22 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
       </div>
 
       {/* Выразительный M3 Expressive Пьедестал Топ-3 */}
-      <div className="flex items-end justify-center gap-2 sm:gap-4 my-3 sm:my-6 h-56 sm:h-64 px-2">
+      <div
+        role="list"
+        aria-label="Призёры игры (Топ-3)"
+        className="flex items-end justify-center gap-2 sm:gap-4 my-3 sm:my-6 h-56 sm:h-64 px-2"
+      >
         {/* 2 МЕСТО (Слева) */}
         {secondPlace && (
           <motion.div
+            role="listitem"
+            aria-label={`2 место: ${secondPlace.nickname}, ${secondPlace.score} очков`}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
             className="flex flex-col items-center flex-1 max-w-[110px] sm:max-w-[130px]"
           >
-            <div className="text-2xl sm:text-3xl mb-1">{secondPlace.avatar || '🥈'}</div>
+            <div className="text-2xl sm:text-3xl mb-1" aria-hidden="true">{secondPlace.avatar || '🥈'}</div>
             <span className="text-xs font-bold text-gray-200 truncate max-w-full block mb-0.5">
               {secondPlace.nickname}
             </span>
@@ -101,13 +122,18 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
         {/* 1 МЕСТО (Центр, самый высокий) */}
         {firstPlace && (
           <motion.div
+            role="listitem"
+            aria-label={`1 место (Чемпион): ${firstPlace.nickname}, ${firstPlace.score} очков`}
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, type: 'spring', stiffness: 300 }}
             className="flex flex-col items-center flex-1 max-w-[130px] sm:max-w-[160px] relative z-10"
           >
-            <Crown className="w-7 h-7 sm:w-8 sm:h-8 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] -mb-1 animate-bounce" />
-            <div className="text-3xl sm:text-4xl mb-1">{firstPlace.avatar || '👑'}</div>
+            <Crown
+              aria-hidden="true"
+              className="w-7 h-7 sm:w-8 sm:h-8 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] -mb-1 animate-bounce"
+            />
+            <div className="text-3xl sm:text-4xl mb-1" aria-hidden="true">{firstPlace.avatar || '👑'}</div>
             <span className="text-xs sm:text-sm font-black text-yellow-300 truncate max-w-full block mb-0.5">
               {firstPlace.nickname}
             </span>
@@ -125,12 +151,14 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
         {/* 3 МЕСТО (Справа) */}
         {thirdPlace && (
           <motion.div
+            role="listitem"
+            aria-label={`3 место: ${thirdPlace.nickname}, ${thirdPlace.score} очков`}
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
             className="flex flex-col items-center flex-1 max-w-[110px] sm:max-w-[130px]"
           >
-            <div className="text-2xl sm:text-3xl mb-1">{thirdPlace.avatar || '🥉'}</div>
+            <div className="text-2xl sm:text-3xl mb-1" aria-hidden="true">{thirdPlace.avatar || '🥉'}</div>
             <span className="text-xs font-bold text-gray-200 truncate max-w-full block mb-0.5">
               {thirdPlace.nickname}
             </span>
@@ -149,14 +177,16 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
       {/* Персональная карточка статистики игрока M3 Expressive Card */}
       {myPlayer && (
         <motion.div
+          role="region"
+          aria-label="Личная статистика игрока"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-[#202330] border border-white/10 rounded-[30px] p-4 sm:p-5 shadow-xl mb-4"
+          className="bg-[var(--bg-surface-container)] border border-white/10 rounded-[30px] p-4 sm:p-5 shadow-xl mb-4"
         >
           <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2.5">
             <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-purple-400" />
+              <Award className="w-5 h-5 text-purple-400" aria-hidden="true" />
               <span className="font-bold text-white text-sm sm:text-base">Твой результат</span>
             </div>
             <span className="px-3 py-1 bg-purple-500/20 text-purple-300 font-extrabold text-xs rounded-full border border-purple-500/30">
@@ -164,25 +194,41 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div className="bg-[#181a24] p-3 rounded-2xl border border-white/5 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5" role="list">
+            <div
+              role="listitem"
+              aria-label={`Счёт: ${myPlayer.score}`}
+              className="bg-[var(--bg-surface-dim)] p-3 rounded-2xl border border-white/5 text-center"
+            >
               <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Счёт</span>
               <span className="text-base sm:text-lg font-black text-white">{myPlayer.score.toLocaleString()}</span>
             </div>
-            <div className="bg-[#181a24] p-3 rounded-2xl border border-white/5 text-center">
+            <div
+              role="listitem"
+              aria-label={`Точность: ${accuracyPercent}%`}
+              className="bg-[var(--bg-surface-dim)] p-3 rounded-2xl border border-white/5 text-center"
+            >
               <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Точность</span>
               <span className="text-base sm:text-lg font-black text-emerald-400">
-                {stats.totalQuestions ? Math.round((stats.correctAnswersCount / stats.totalQuestions) * 100) : 0}%
+                {accuracyPercent}%
               </span>
             </div>
-            <div className="bg-[#181a24] p-3 rounded-2xl border border-white/5 text-center">
+            <div
+              role="listitem"
+              aria-label={`Средняя скорость: ${stats.averageResponseTimeSec} секунд`}
+              className="bg-[var(--bg-surface-dim)] p-3 rounded-2xl border border-white/5 text-center"
+            >
               <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Ср. Скорость</span>
               <span className="text-base sm:text-lg font-black text-cyan-400">{stats.averageResponseTimeSec}s</span>
             </div>
-            <div className="bg-[#181a24] p-3 rounded-2xl border border-white/5 text-center">
+            <div
+              role="listitem"
+              aria-label={`Лучший стрик: ${stats.highestStreak}`}
+              className="bg-[var(--bg-surface-dim)] p-3 rounded-2xl border border-white/5 text-center"
+            >
               <span className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Лучший стрик</span>
               <span className="text-base sm:text-lg font-black text-amber-400 flex items-center justify-center gap-1">
-                <Flame className="w-4 h-4" /> {stats.highestStreak}
+                <Flame className="w-4 h-4" aria-hidden="true" /> {stats.highestStreak}
               </span>
             </div>
           </div>
@@ -192,15 +238,16 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
       {/* Кнопка Сыграть еще */}
       <motion.button
         type="button"
+        aria-label="Сыграть ещё раз"
         onClick={onRestart}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.96 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className="w-full py-4 rounded-[26px] bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 text-white font-extrabold text-base sm:text-lg shadow-xl shadow-purple-900/40 flex items-center justify-center gap-2 cursor-pointer border border-white/20"
       >
-        <RotateCcw className="w-5 h-5 stroke-[2.5]" />
+        <RotateCcw className="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
         Сыграть ещё раз
       </motion.button>
-    </div>
+    </section>
   )
 }

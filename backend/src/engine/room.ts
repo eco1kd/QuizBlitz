@@ -436,6 +436,16 @@ export class Room {
     }))
 
     const correctAnswersCount = this.allAnswers.filter(a => a.correct).length
+    const playerCorrectCounts: Record<string, number> = {}
+    for (const p of this.players.values()) {
+      playerCorrectCounts[p.id] = 0
+    }
+    for (const ans of this.allAnswers) {
+      if (ans.correct) {
+        playerCorrectCounts[ans.playerId] = (playerCorrectCounts[ans.playerId] || 0) + 1
+      }
+    }
+
     const avgResponseSec = this.responseTimesMs.length > 0
       ? Math.round((this.responseTimesMs.reduce((a, b) => a + b, 0) / this.responseTimesMs.length / 1000) * 10) / 10
       : 0
@@ -470,6 +480,7 @@ export class Room {
     const stats: GameStats = {
       totalQuestions: this.questions.length,
       correctAnswersCount,
+      playerCorrectCounts,
       averageResponseTimeSec: avgResponseSec,
       highestStreak,
       hardestQuestionText: hardestQuestionText || (this.questions[0]?.text ?? undefined)

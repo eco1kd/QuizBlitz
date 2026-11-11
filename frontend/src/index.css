@@ -6,11 +6,23 @@
     --bg-surface-dim: #181a24;
     --bg-surface-container: #202330;
     --bg-surface-container-high: #292d3e;
+    --bg-leaderboard-me-mid: #272344;
+    --bg-leaderboard-me-end: #1e1c33;
+    --bg-reveal-correct-end: #182a22;
+    --bg-reveal-wrong-end: #2a181c;
     --primary: #9d86ff;
     --primary-container: #3d3570;
     --on-primary: #1b1248;
     --secondary: #ff7597;
     --tertiary: #52e1c9;
+    --option-red-start: #e03e52;
+    --option-red-end: #b82337;
+    --option-blue-start: #2272eb;
+    --option-blue-end: #1249a8;
+    --option-amber-start: #f59e0b;
+    --option-amber-end: #c97700;
+    --option-emerald-start: #10b981;
+    --option-emerald-end: #047857;
   }
 
   body {

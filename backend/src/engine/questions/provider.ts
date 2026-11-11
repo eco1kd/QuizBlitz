@@ -23,18 +23,24 @@ interface RawQuestion {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+export function shuffleArray<T>(items: readonly T[]): T[] {
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const temp = result[i]
+    result[i] = result[j]
+    result[j] = temp
+  }
+  return result
+}
+
 export function shuffleQuestionOptions(q: RawQuestion): {
   options: [string, string, string, string]
   correctIndex: number
 } {
-  const indexed = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correctIndex }))
-
-  for (let i = indexed.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const temp = indexed[i]
-    indexed[i] = indexed[j]
-    indexed[j] = temp
-  }
+  const indexed = shuffleArray(
+    q.options.slice(0, 4).map((opt, i) => ({ opt, isCorrect: i === q.correctIndex }))
+  )
 
   const shuffledOptions: [string, string, string, string] = [
     indexed[0].opt,
@@ -87,23 +93,34 @@ export class FallbackQuestionProvider implements QuestionProvider {
     const all = await this.loadQuestions()
     const count = Math.max(1, params.count || 5)
 
+    // Дедупликация пула по нормализованному тексту вопроса
+    const uniqueAll: RawQuestion[] = []
+    const seenTexts = new Set<string>()
+    for (const q of all) {
+      const norm = q.text.trim().toLowerCase()
+      if (!seenTexts.has(norm)) {
+        seenTexts.add(norm)
+        uniqueAll.push(q)
+      }
+    }
+
     const normalizedTopic = (params.topic || '').trim().toLowerCase()
-    let pool = all.filter(q => (q.topic || '').toLowerCase().includes(normalizedTopic))
+    const matchingTopic = normalizedTopic
+      ? shuffleArray(uniqueAll.filter(q => (q.topic || '').toLowerCase().includes(normalizedTopic)))
+      : []
 
-    if (pool.length < count) {
-      const remaining = all.filter(q => !pool.includes(q))
-      pool = [...pool, ...remaining]
-    }
+    const matchingSet = new Set(matchingTopic)
+    const remaining = shuffleArray(uniqueAll.filter(q => !matchingSet.has(q)))
+    const combinedPool = [...matchingTopic, ...remaining]
 
-    if (pool.length === 0) {
-      pool = all
-    }
+    const selected = combinedPool.slice(0, count)
 
-    const shuffledPool = [...pool].sort(() => Math.random() - 0.5)
-    const selected = shuffledPool.slice(0, count)
-
-    while (selected.length < count) {
-      selected.push(all[selected.length % all.length])
+    while (selected.length < count && uniqueAll.length > 0) {
+      const extraBatch = shuffleArray(uniqueAll)
+      for (const item of extraBatch) {
+        if (selected.length >= count) break
+        selected.push(item)
+      }
     }
 
     return selected.map((raw, idx) => {
