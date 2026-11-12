@@ -74,16 +74,18 @@ export function App() {
     if (
       !engine.finishedData ||
       !user ||
-      engine.connectionMode !== 'mock' ||
       !AUTH_DEMO
     )
       return
     const mine = engine.finishedData.leaderboard.find(
-      (player) => player.id === engine.currentPlayer.id,
+      (player) =>
+        player.id === engine.currentPlayer.id ||
+        (player as any).isCurrentPlayer ||
+        player.nickname === user.nickname,
     )
     if (mine)
       recordDemoGame(user.id, {
-        id: engine.roomInfo.roomId,
+        id: engine.roomInfo.roomId || `game-${Date.now()}`,
         topic: engine.roomInfo.topic,
         playedAt: new Date().toISOString(),
         score: mine.score,
@@ -94,8 +96,8 @@ export function App() {
   }, [
     engine.finishedData,
     user,
-    engine.connectionMode,
     engine.currentPlayer.id,
+    engine.currentPlayer.nickname,
     engine.roomInfo.roomId,
     engine.roomInfo.topic,
   ])

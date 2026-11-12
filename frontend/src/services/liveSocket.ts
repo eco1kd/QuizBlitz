@@ -20,7 +20,7 @@ export class LiveSocketService {
   private autoAdvanceTimer: number | null = null
 
   public isConnected = false
-  public isAutoMode = true
+  public isAutoMode = false
 
   public roomInfo: RoomInfo = {
     code: '------',
@@ -248,10 +248,16 @@ export class LiveSocketService {
     questionCount: number
     difficulty: 'easy' | 'medium' | 'hard'
   }) {
+    const userSession = getSession()?.user
+    const nickname = userSession?.nickname || this.currentPlayer.nickname || 'Хост'
+    const avatar = userSession?.avatar || this.currentPlayer.avatar || '👑'
+
     this.roomInfo.topic = opts.topic || 'Космос, Наука и ИИ'
     this.roomInfo.questionCount = opts.questionCount || 5
     this.roomInfo.difficulty = opts.difficulty || 'medium'
     this.roomInfo.isHost = true
+    this.currentPlayer.nickname = nickname
+    this.currentPlayer.avatar = avatar
     this.currentPlayer.score = 0
     this.currentPlayer.streak = 0
 
@@ -259,6 +265,8 @@ export class LiveSocketService {
       topic: this.roomInfo.topic,
       questionCount: this.roomInfo.questionCount,
       difficulty: this.roomInfo.difficulty,
+      nickname,
+      avatar,
     })
   }
 

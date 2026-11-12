@@ -11,6 +11,7 @@ import {
   AUTH_DEMO,
   fetchHistory,
   fetchProfile,
+  formatQuestionCount,
   type HistoryGame,
   type User,
 } from '../../services/account'
@@ -190,7 +191,7 @@ export function Account({
                               month: 'long',
                               timeZone: 'Asia/Almaty',
                             }).format(new Date(game.playedAt))}{' '}
-                            · {game.questionCount} вопросов
+                            · {formatQuestionCount(game.questionCount)}
                           </p>
                         </div>
                         <span className="history-rank">

@@ -12,6 +12,8 @@ export interface ClientToServerEvents {
     topic: string
     questionCount?: number
     difficulty?: 'easy' | 'medium' | 'hard'
+    nickname?: string
+    avatar?: string
   }) => void
   'room:join': (data: {
     code: string

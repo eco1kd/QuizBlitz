@@ -43,8 +43,8 @@ export function registerSocketHandlers(io: TypedServer, manager: RoomManager = r
         console.log(`[Socket] room:created -> код: ${room.code}, тема: «${topic}», вопросов: ${count}, сложность: ${difficulty}`)
 
         const { player } = room.addOrReconnectPlayer({
-          nickname: 'Хост',
-          avatar: '👑',
+          nickname: (data.nickname || '').trim() || 'Хост',
+          avatar: data.avatar || '👑',
           socketId: socket.id,
           isHost: true
         })

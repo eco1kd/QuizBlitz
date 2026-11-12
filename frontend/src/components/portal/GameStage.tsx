@@ -64,6 +64,7 @@ export function GameStage({
           leaderboard={e.leaderboard}
           currentPlayerId={e.currentPlayer.id}
           isHost={e.roomInfo.isHost}
+          isLastQuestion={Boolean(e.question && e.question.index >= e.question.total)}
           onNext={e.nextStep}
         />
       )}

@@ -19,6 +19,19 @@ export interface HistoryGame {
   players: number
   questionCount: number
 }
+
+export function pluralizeQuestions(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod100 >= 11 && mod100 <= 14) return 'вопросов'
+  if (mod10 === 1) return 'вопрос'
+  if (mod10 >= 2 && mod10 <= 4) return 'вопроса'
+  return 'вопросов'
+}
+
+export function formatQuestionCount(count: number): string {
+  return `${count} ${pluralizeQuestions(count)}`
+}
 export const AUTH_DEMO = import.meta.env.VITE_AUTH_MODE !== 'live'
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 const sessionKey = `quizblitz.session.${AUTH_DEMO ? 'demo' : 'live'}`

@@ -2,33 +2,33 @@
 
 @layer base {
   :root {
-    --bg-surface: #0f111a;
-    --bg-surface-dim: #181a24;
-    --bg-surface-container: #202330;
-    --bg-surface-container-high: #292d3e;
-    --bg-leaderboard-me-mid: #272344;
-    --bg-leaderboard-me-end: #1e1c33;
-    --bg-reveal-correct-end: #182a22;
-    --bg-reveal-wrong-end: #2a181c;
-    --primary: #9d86ff;
-    --primary-container: #3d3570;
-    --on-primary: #1b1248;
+    --bg-surface: #ffffff;
+    --bg-surface-dim: #f7f3fb;
+    --bg-surface-container: #ede4f8;
+    --bg-surface-container-high: #e2d4f5;
+    --bg-leaderboard-me-mid: #ede4f8;
+    --bg-leaderboard-me-end: #f4eff9;
+    --bg-reveal-correct-end: #d1fae5;
+    --bg-reveal-wrong-end: #fee2e2;
+    --primary: #6850a1;
+    --primary-container: #e9dfff;
+    --on-primary: #ffffff;
     --secondary: #ff7597;
     --tertiary: #52e1c9;
-    --option-red-start: #e03e52;
-    --option-red-end: #b82337;
-    --option-blue-start: #2272eb;
-    --option-blue-end: #1249a8;
+    --option-red-start: #e53950;
+    --option-red-end: #cb1a33;
+    --option-blue-start: #2563eb;
+    --option-blue-end: #1d4ed8;
     --option-amber-start: #f59e0b;
-    --option-amber-end: #c97700;
+    --option-amber-end: #d97706;
     --option-emerald-start: #10b981;
-    --option-emerald-end: #047857;
+    --option-emerald-end: #059669;
   }
 
   body {
-    background-color: var(--bg-surface);
-    color: #f1f3f9;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Plus Jakarta Sans", system-ui, sans-serif;
+    background-color: var(--qb-bg, #fbf9f5);
+    color: var(--qb-ink, #28242d);
+    font-family: "Manrope", "Arial", sans-serif;
     margin: 0;
     padding: 0;
     min-height: 100vh;

@@ -21,36 +21,36 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
     <section
       role="region"
       aria-labelledby="current-question-heading"
-      className="w-full max-w-3xl mx-auto px-4 py-2 flex flex-col justify-between flex-1"
+      className="w-full max-w-3xl mx-auto px-2 py-2 flex flex-col justify-between flex-1"
     >
-      {/* Карточка вопроса M3 Expressive Card */}
+      {/* Карточка вопроса в стиле .room-topic / Material 3 Expressive */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="relative bg-[var(--bg-surface-container)] border border-white/10 rounded-[32px] p-5 sm:p-7 shadow-2xl mb-4 sm:mb-6 overflow-hidden"
+        className="relative bg-[#ede4f8] border border-[#d8c8ec] rounded-[30px] p-5 sm:p-7 shadow-sm mb-4 sm:mb-6 overflow-hidden"
       >
-        {/* Фоновые декоративные блики M3 Expressive */}
+        {/* Фоновые декоративные блики M3 Expressive в мягких тонах сайта */}
         <div
           aria-hidden="true"
-          className="absolute -top-12 -right-12 w-36 h-36 bg-purple-600/15 rounded-full blur-2xl pointer-events-none"
+          className="absolute -top-12 -right-12 w-36 h-36 bg-purple-400/20 rounded-full blur-2xl pointer-events-none"
         />
         <div
           aria-hidden="true"
-          className="absolute -bottom-12 -left-12 w-36 h-36 bg-blue-600/15 rounded-full blur-2xl pointer-events-none"
+          className="absolute -bottom-12 -left-12 w-36 h-36 bg-indigo-300/20 rounded-full blur-2xl pointer-events-none"
         />
 
-        <div className="relative z-10 flex items-start gap-3">
+        <div className="relative z-10 flex items-start gap-3.5">
           <div
             aria-hidden="true"
-            className="hidden sm:flex flex-shrink-0 w-9 h-9 rounded-2xl bg-purple-500/20 items-center justify-center text-purple-300 mt-0.5"
+            className="hidden sm:flex flex-shrink-0 w-10 h-10 rounded-2xl bg-[#dcc9f1] items-center justify-center text-[#55347e] shadow-sm mt-0.5"
           >
             <HelpCircle className="w-5 h-5" />
           </div>
           <div className="flex-1">
             <h2
               id="current-question-heading"
-              className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white leading-tight sm:leading-snug tracking-tight"
+              className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#28242d] leading-tight sm:leading-snug tracking-tight"
             >
               {question.text}
             </h2>
@@ -81,7 +81,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
 
       {/* Подсказка снизу */}
       <div className="mt-4 text-center" role="status" aria-live="polite">
-        <span className="text-xs text-gray-400 font-medium">
+        <span className="text-xs text-[#746e7a] font-semibold">
           {selectedOption === null
             ? '⚡ Чем быстрее правильный ответ, тем больше очков!'
             : '✓ Ответ зафиксирован, ожидаем завершения раунда'}

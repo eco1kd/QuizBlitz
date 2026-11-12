@@ -44,9 +44,7 @@ export function Home({
       <div className="page-heading">
         <div>
           <p className="eyebrow">МЕНЬШЕ СКРОЛЛА. БОЛЬШЕ АЗАРТА.</p>
-          <h1>
-            Ну что, сыграем<span className="purple">?</span>
-          </h1>
+          <h1>Ну что, сыграем<span className="purple">?</span></h1>
         </div>
         <span className="small-note">
           <span className="status-dot" />
