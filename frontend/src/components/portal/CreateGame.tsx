@@ -8,6 +8,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type { RoomOptions } from '../../hooks/useGameEngine'
+import { pluralizeQuestions } from '../../services/account'
 import { Flower } from './UI'
 export function CreateGame({
   initialTopic,
@@ -106,7 +107,7 @@ export function CreateGame({
                   onClick={() => setCount(n)}
                 >
                   <strong>{n}</strong>
-                  <span>вопросов</span>
+                  <span>{pluralizeQuestions(n)}</span>
                   {n === count && <Check size={16} />}
                 </button>
               ))}
@@ -157,7 +158,7 @@ export function CreateGame({
           <h2>{topic.trim() || 'Здесь будет твоя тема'}</h2>
           <div className="summary-details">
             <span>
-              <strong>{count}</strong> вопросов
+              <strong>{count}</strong> {pluralizeQuestions(count)}
             </span>
             <span>
               <strong>

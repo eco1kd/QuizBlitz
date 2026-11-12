@@ -91,11 +91,16 @@ export class AiQuestionProvider implements QuestionProvider {
 
       seenTexts.add(normText)
 
+      const exp =
+        typeof item.explanation === 'string' && item.explanation.trim()
+          ? item.explanation.trim()
+          : `Правильный ответ: «${rawOptions[cIdx]}».`
+
       const raw = {
         text: qText,
         options: rawOptions,
         correctIndex: cIdx,
-        explanation: typeof item.explanation === 'string' ? item.explanation.trim() : ''
+        explanation: exp
       }
 
       const { options, correctIndex } = shuffleQuestionOptions(raw)
@@ -159,7 +164,8 @@ export class AiQuestionProvider implements QuestionProvider {
 Требования:
 1. Ровно 4 разных непустых варианта в "options".
 2. "correctIndex" — строго целое число от 0 до 3.
-3. Без повторяющихся вопросов и вариантов, один однозначно правильный ответ.`
+3. Без повторяющихся вопросов и вариантов, один однозначно правильный ответ.
+4. Поле "explanation" строго обязательно для каждого вопроса (1-2 интересных предложения, раскрывающих правильный ответ).`
 
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), this.timeoutMs)

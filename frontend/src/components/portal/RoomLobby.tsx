@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type { GameEngine } from '../../hooks/useGameEngine'
+import { formatQuestionCount } from '../../services/account'
 export function RoomLobby({
   engine,
   onLeave,
@@ -68,9 +69,7 @@ export function RoomLobby({
       <div className="page-heading">
         <div>
           <p className="eyebrow">ЛУЧШИЕ ИГРЫ — В ХОРОШЕЙ КОМПАНИИ</p>
-          <h1>
-            Все в сборе<span className="purple">?</span>
-          </h1>
+          <h1>Все в сборе<span className="purple">?</span></h1>
           <p className="muted">
             {room.isHost
               ? 'Поделись кодом и подожди остальных.'
@@ -92,7 +91,7 @@ export function RoomLobby({
             <h2>{room.topic}</h2>
             {room.isHost && (
               <div className="room-tags">
-                <span>{room.questionCount} вопросов</span>
+                <span>{formatQuestionCount(room.questionCount)}</span>
                 <span>
                   {room.difficulty === 'easy'
                     ? 'Лёгкая'

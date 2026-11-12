@@ -1781,27 +1781,52 @@ svg {
   animation: spin 2s linear infinite;
 }
 .game-stage {
-  background: #0f111a;
-  color: #fff;
-  border-radius: 28px;
+  background: var(--qb-surface);
+  color: var(--qb-ink);
+  border: 1px solid #e9e2ec;
+  border-radius: var(--qb-radius);
+  box-shadow: 0 10px 40px rgba(104, 80, 161, 0.05);
   min-height: 700px;
-  padding: 20px;
+  padding: 24px;
   overflow: hidden;
 }
 .game-stage-top {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 20px;
   font-size: var(--qb-text-small);
-  color: #b1a2c9;
-  padding: 10px;
-  margin-bottom: 20px;
+  padding: 4px 6px 16px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f1ecf5;
+}
+.game-stage-top > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f4eff9;
+  border: 1px solid #d8ccea;
+  border-radius: 100px;
+  padding: 7px 14px;
+  color: #51366e;
+  font-weight: 700;
+  font-size: var(--qb-text-small);
 }
 .game-stage-top button {
-  border: 1px solid #3b314d;
-  padding: 8px 12px;
+  border: 1px solid #d8ccea;
+  background: #fff;
+  color: #715184;
+  font-weight: 650;
+  font-size: var(--qb-text-small);
+  padding: 8px 16px;
   border-radius: 99px;
   flex-shrink: 0;
+  transition: all 0.2s var(--qb-spring);
+}
+.game-stage-top button:hover {
+  background: #f7f2fb;
+  border-color: #bba3df;
+  color: #4c3260;
 }
 .skip-link {
   position: fixed;
