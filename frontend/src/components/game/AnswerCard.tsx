@@ -15,7 +15,7 @@ export interface AnswerCardProps {
 const OPTION_STYLES = [
   {
     // Вариант 0: Красный / Треугольник
-    bg: 'bg-gradient-to-br from-[#E03E52] to-[#B82337]',
+    bg: 'bg-gradient-to-br from-[var(--option-red-start)] to-[var(--option-red-end)]',
     border: 'border-red-400/30',
     icon: Triangle,
     ring: 'ring-red-400',
@@ -23,7 +23,7 @@ const OPTION_STYLES = [
   },
   {
     // Вариант 1: Синий / Ромб
-    bg: 'bg-gradient-to-br from-[#2272EB] to-[#1249A8]',
+    bg: 'bg-gradient-to-br from-[var(--option-blue-start)] to-[var(--option-blue-end)]',
     border: 'border-blue-400/30',
     icon: Diamond,
     ring: 'ring-blue-400',
@@ -31,7 +31,7 @@ const OPTION_STYLES = [
   },
   {
     // Вариант 2: Желтый / Круг
-    bg: 'bg-gradient-to-br from-[#F59E0B] to-[#C97700]',
+    bg: 'bg-gradient-to-br from-[var(--option-amber-start)] to-[var(--option-amber-end)]',
     border: 'border-amber-400/30',
     icon: Circle,
     ring: 'ring-amber-400',
@@ -39,7 +39,7 @@ const OPTION_STYLES = [
   },
   {
     // Вариант 3: Зеленый / Квадрат
-    bg: 'bg-gradient-to-br from-[#10B981] to-[#047857]',
+    bg: 'bg-gradient-to-br from-[var(--option-emerald-start)] to-[var(--option-emerald-end)]',
     border: 'border-emerald-400/30',
     icon: Square,
     ring: 'ring-emerald-400',
@@ -81,10 +81,23 @@ export const AnswerCard: React.FC<AnswerCardProps> = ({
     onClick?.()
   }
 
+  const statusSuffix = isRevealMode
+    ? isCorrect
+      ? ' — верный ответ'
+      : selected
+        ? ' — ваш ответ (неверно)'
+        : ''
+    : selected
+      ? ' — выбрано'
+      : ''
+
   return (
     <motion.button
       type="button"
       onClick={handleClick}
+      aria-label={`Вариант ${index + 1}: ${text}${statusSuffix}`}
+      aria-pressed={selected}
+      aria-disabled={disabled || isRevealMode}
       whileHover={!disabled && !isRevealMode ? { y: -2, scale: 1.01 } : {}}
       whileTap={!disabled && !isRevealMode ? { scale: 0.94 } : {}}
       transition={{ type: 'spring', stiffness: 500, damping: 25 }}
@@ -95,7 +108,10 @@ export const AnswerCard: React.FC<AnswerCardProps> = ({
       }`}
     >
       {/* Иконка фигуры M3 Pill */}
-      <div className="flex-shrink-0 w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-black/25 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-inner">
+      <div
+        aria-hidden="true"
+        className="flex-shrink-0 w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-black/25 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-inner"
+      >
         {isRevealMode && isCorrect ? (
           <Check className="w-6 h-6 sm:w-7 sm:h-7 text-white stroke-[3]" />
         ) : isRevealMode && selected && !isCorrect ? (
@@ -117,6 +133,7 @@ export const AnswerCard: React.FC<AnswerCardProps> = ({
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
+          aria-hidden="true"
           className="flex-shrink-0 px-2.5 py-1 rounded-full bg-white text-gray-900 text-xs font-black uppercase tracking-wider shadow-md"
         >
           Выбор

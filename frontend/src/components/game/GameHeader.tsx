@@ -24,7 +24,8 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
 }) => {
   const [isMuted, setIsMuted] = useState(sounds.isMuted)
   const isUrgent = timeRemaining <= 5 && timeRemaining > 0
-  const progressRatio = Math.max(0, Math.min(1, timeRemaining / (timeLimit || 20)))
+  const maxTime = timeLimit || 20
+  const progressRatio = Math.max(0, Math.min(1, timeRemaining / maxTime))
 
   // Звук тиканья таймера
   useEffect(() => {
@@ -39,12 +40,19 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   }
 
   return (
-    <header className="w-full max-w-3xl mx-auto px-4 pt-3 pb-2 select-none">
+    <header
+      role="banner"
+      aria-label="Игровая панель"
+      className="w-full max-w-3xl mx-auto px-4 pt-3 pb-2 select-none"
+    >
       {/* Верхний ряд бейджей в стиле M3 Expressive Pill */}
       <div className="flex items-center justify-between gap-2 mb-3">
         {/* Номер вопроса */}
-        <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#202330] rounded-full border border-white/10 shadow-sm">
-          <Sparkles className="w-4 h-4 text-[#9d86ff]" />
+        <div
+          aria-label={`Вопрос ${currentIndex} из ${totalQuestions}`}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--bg-surface-container)] rounded-full border border-white/10 shadow-sm"
+        >
+          <Sparkles className="w-4 h-4 text-[var(--primary)]" aria-hidden="true" />
           <span className="text-xs font-semibold tracking-wide text-gray-300">
             Вопрос <span className="text-white font-bold">{currentIndex}</span> из {totalQuestions}
           </span>
@@ -56,15 +64,21 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              role="status"
+              aria-label={`Серия ответов: множитель x${streak >= 5 ? '1.5' : '1.2'}`}
               className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full"
             >
-              <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
+              <Flame className="w-4 h-4 text-amber-400 animate-pulse" aria-hidden="true" />
               <span className="text-xs font-bold text-amber-300">x{streak >= 5 ? '1.5' : '1.2'}</span>
             </motion.div>
           )}
 
-          <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#292d3e] rounded-full border border-purple-500/30 shadow-md">
-            <Trophy className="w-4 h-4 text-yellow-400" />
+          <div
+            role="status"
+            aria-label={`Текущий счёт: ${score} очков`}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--bg-surface-container-high)] rounded-full border border-purple-500/30 shadow-md"
+          >
+            <Trophy className="w-4 h-4 text-yellow-400" aria-hidden="true" />
             <span className="text-xs font-bold text-white tracking-wider">
               {score.toLocaleString()} <span className="text-[10px] text-purple-300 uppercase">pts</span>
             </span>
@@ -75,9 +89,14 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
             type="button"
             onClick={toggleSound}
             aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
-            className="w-8 h-8 rounded-full bg-[#202330] border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition"
+            aria-pressed={isMuted}
+            className="w-8 h-8 rounded-full bg-[var(--bg-surface-container)] border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition"
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-gray-500" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
+            {isMuted ? (
+              <VolumeX className="w-4 h-4 text-gray-500" aria-hidden="true" />
+            ) : (
+              <Volume2 className="w-4 h-4 text-purple-400" aria-hidden="true" />
+            )}
           </button>
         </div>
       </div>
@@ -87,10 +106,13 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
         <div className="relative w-full">
           <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-1">
             <span className="flex items-center gap-1 text-gray-400">
-              <Clock className="w-3.5 h-3.5" />
+              <Clock className="w-3.5 h-3.5" aria-hidden="true" />
               Таймер
             </span>
             <motion.span
+              role="timer"
+              aria-live="off"
+              aria-label={`Осталось ${timeRemaining} секунд`}
               animate={isUrgent ? { scale: [1, 1.25, 1], color: ['#ef4444', '#f87171', '#ef4444'] } : {}}
               transition={{ repeat: Infinity, duration: 0.6 }}
               className={`font-mono text-sm font-extrabold ${
@@ -102,7 +124,14 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           </div>
 
           {/* Индикатор полосы таймера с пружинным переходом */}
-          <div className="w-full h-3 bg-[#181a24] rounded-full overflow-hidden p-0.5 border border-white/10 shadow-inner">
+          <div
+            role="progressbar"
+            aria-label="Оставшееся время на ответ"
+            aria-valuenow={timeRemaining}
+            aria-valuemin={0}
+            aria-valuemax={maxTime}
+            className="w-full h-3 bg-[var(--bg-surface-dim)] rounded-full overflow-hidden p-0.5 border border-white/10 shadow-inner"
+          >
             <motion.div
               className={`h-full rounded-full transition-colors duration-300 ${
                 isUrgent
